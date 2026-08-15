@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XAU/USD Analysis Terminal</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0B0E14">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gold Terminal">
 <style>
   :root{
     --bg:#0B0E14;
@@ -143,22 +149,8 @@
 
       <div class="panel">
         <div class="panel-label"><b>BERITA & SENTIMEN FUNDAMENTAL</b> — headline terbaru terkait gold</div>
-        <div class="news-wrap">
-          <div class="tradingview-widget-container" style="height:100%;width:100%">
-            <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-timeline.js" async>
-            {
-              "feedMode": "symbol",
-              "symbol": "OANDA:XAUUSD",
-              "colorTheme": "dark",
-              "isTransparent": true,
-              "displayMode": "regular",
-              "width": "100%",
-              "height": "100%",
-              "locale": "id"
-            }
-            </script>
-          </div>
+        <div class="news-wrap lazy-widget" data-widget="timeline">
+          <div class="lazy-placeholder" style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px;">Scroll ke sini untuk muat berita...</div>
         </div>
       </div>
     </div>
@@ -220,21 +212,8 @@
 
       <div class="panel">
         <div class="panel-label"><b>KALENDER EKONOMI</b> — event fundamental (NFP, suku bunga, inflasi, dll)</div>
-        <div class="side-wrap">
-          <div class="tradingview-widget-container" style="height:100%;width:100%">
-            <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-events.js" async>
-            {
-              "colorTheme": "dark",
-              "isTransparent": true,
-              "width": "100%",
-              "height": "100%",
-              "locale": "id",
-              "importanceFilter": "-1,0,1",
-              "countryFilter": "us,eu,cn,jp,gb"
-            }
-            </script>
-          </div>
+        <div class="side-wrap lazy-widget" data-widget="events">
+          <div class="lazy-placeholder" style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px;">Scroll ke sini untuk muat kalender...</div>
         </div>
       </div>
     </div>
@@ -343,6 +322,56 @@ function updateSignal(){
 
 pollPrice();
 setInterval(pollPrice, POLL_MS);
+
+// Lazy-load heavy TradingView widgets (news, calendar) only when scrolled into view
+const widgetConfigs = {
+  timeline: {
+    src: 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js',
+    config: { feedMode: 'symbol', symbol: 'OANDA:XAUUSD', colorTheme: 'dark', isTransparent: true, displayMode: 'regular', width: '100%', height: '100%', locale: 'id' }
+  },
+  events: {
+    src: 'https://s3.tradingview.com/external-embedding/embed-widget-events.js',
+    config: { colorTheme: 'dark', isTransparent: true, width: '100%', height: '100%', locale: 'id', importanceFilter: '-1,0,1', countryFilter: 'us,eu,cn,jp,gb' }
+  }
+};
+
+function loadLazyWidget(container){
+  const type = container.dataset.widget;
+  const cfg = widgetConfigs[type];
+  if (!cfg) return;
+  container.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'tradingview-widget-container';
+  wrap.style.cssText = 'height:100%;width:100%';
+  const inner = document.createElement('div');
+  inner.className = 'tradingview-widget-container__widget';
+  inner.style.cssText = 'height:100%;width:100%';
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = cfg.src;
+  script.async = true;
+  script.text = JSON.stringify(cfg.config);
+  wrap.appendChild(inner);
+  wrap.appendChild(script);
+  container.appendChild(wrap);
+}
+
+const lazyObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting){
+      loadLazyWidget(entry.target);
+      lazyObserver.unobserve(entry.target);
+    }
+  });
+}, { rootMargin: '150px' });
+
+document.querySelectorAll('.lazy-widget').forEach(el => lazyObserver.observe(el));
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>

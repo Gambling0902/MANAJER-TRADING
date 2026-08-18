@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAU/USD Analysis Terminal</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" href="./favicon.png">
+<meta name="theme-color" content="#FAF7F0">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gold Terminal">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F1E7;
+    --bg-2:#FBF8F1;
+    --panel:#FFFFFF;
+    --panel-2:#FFFDF9;
+    --border:#E9E1CE;
+    --border-strong:#D9CDA9;
+    --gold:#B8892B;
+    --gold-2:#D4A845;
+    --gold-soft:#F1E4C0;
+    --gold-glow:rgba(184,137,43,0.18);
+    --text:#1E1A12;
+    --text-2:#3B3527;
+    --muted:#8A8168;
+    --muted-2:#B6AC90;
+    --up:#0E9F6E;
+    --up-soft:#E4F7EF;
+    --down:#D63A3A;
+    --down-soft:#FCE7E7;
+    --shadow-sm:0 1px 2px rgba(60,45,10,0.04), 0 1px 3px rgba(60,45,10,0.06);
+    --shadow-md:0 4px 12px rgba(60,45,10,0.06), 0 2px 4px rgba(60,45,10,0.04);
+    --shadow-lg:0 12px 32px rgba(60,45,10,0.08), 0 4px 12px rgba(60,45,10,0.05);
+    --radius:14px;
+    --radius-sm:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{background:var(--bg);}
+  body{
+    margin:0;
+    color:var(--text);
+    font-family:'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    padding:28px 24px 40px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(212,168,69,0.10), transparent 60%),
+      radial-gradient(900px 400px at 110% 0%, rgba(184,137,43,0.08), transparent 60%),
+      var(--bg);
+    min-height:100vh;
+  }
+  .container{ max-width:1400px; margin:0 auto; }
+
+  /* ===== Ticker ===== */
+  .ticker{
+    background:linear-gradient(135deg, #FFFFFF 0%, #FFFDF6 100%);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:10px 20px;
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:22px;
+    font-family:'JetBrains Mono', 'Courier New', monospace;
+    font-size:11.5px;
+    letter-spacing:1.4px;
+    color:var(--muted);
+    box-shadow:var(--shadow-sm);
+    text-transform:uppercase;
+    font-weight:500;
+  }
+  .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--up);
+    box-shadow:0 0 0 4px rgba(14,159,110,0.15), 0 0 10px rgba(14,159,110,0.6);
+    flex-shrink:0;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow:0 0 0 4px rgba(14,159,110,0.15), 0 0 10px rgba(14,159,110,0.6); }
+    50%   { box-shadow:0 0 0 7px rgba(14,159,110,0.05), 0 0 14px rgba(14,159,110,0.8); }
+  }
+
+  /* ===== Header ===== */
+  .header{
+    margin-bottom:26px;
+    padding:26px 30px;
+    background:linear-gradient(135deg, #FFFFFF 0%, #FDF9EE 100%);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-md);
+    position:relative;
+    overflow:hidden;
+  }
+  .header::before{
+    content:"";
+    position:absolute;
+    top:0; right:0; bottom:0;
+    width:200px;
+    background:
+      radial-gradient(circle at 100% 0%, var(--gold-soft), transparent 70%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--gold);
+    letter-spacing:3px;
+    margin-bottom:8px;
+    font-weight:600;
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:22px;height:2px;
+    background:linear-gradient(90deg, var(--gold), transparent);
+    display:inline-block;
+  }
+  .title{
+    font-family:'Playfair Display', Georgia, serif;
+    font-size:30px;
+    line-height:1.2;
+    font-weight:800;
+    color:var(--text);
+    margin:0 0 8px;
+    letter-spacing:-0.5px;
+  }
+  .title .accent{
+    background:linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .subtitle{
+    font-size:14px;
+    color:var(--muted);
+    max-width:820px;
+    line-height:1.6;
+  }
+
+  /* ===== Tabs ===== */
+  .tabbar{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:6px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow-sm);
+  }
+  .tabbar::-webkit-scrollbar{ height:0; }
+  .tab-btn{
+    flex-shrink:0;
+    background:transparent;
+    border:1px solid transparent;
+    color:var(--muted);
+    padding:11px 20px;
+    border-radius:10px;
+    font-size:13.5px;
+    font-weight:600;
+    font-family:'Inter', sans-serif;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .18s ease;
+    letter-spacing:0.1px;
+  }
+  .tab-btn:hover{
+    color:var(--text-2);
+    background:var(--gold-soft);
+  }
+  .tab-btn.active{
+    background:linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
+    color:#FFFFFF;
+    border-color:var(--gold);
+    box-shadow:0 4px 12px var(--gold-glow);
+  }
+  .tab-content{ display:none; animation:fadeIn .3s ease; }
+  .tab-content.active{ display:block; }
+  @keyframes fadeIn{
+    from{ opacity:0; transform:translateY(4px); }
+    to  { opacity:1; transform:translateY(0); }
+  }
+
+  /* ===== Grid ===== */
+  .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:18px;
+  }
+  @media (max-width: 900px){
+    .row2{ grid-template-columns: 1fr; }
+    body{ padding:18px 14px 30px; }
+    .title{ font-size:24px; }
+    .header{ padding:20px 20px; }
+  }
+
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:hidden;
+    margin-bottom:18px;
+    box-shadow:var(--shadow-md);
+    transition:box-shadow .25s ease, transform .25s ease;
+  }
+  .panel:hover{
+    box-shadow:var(--shadow-lg);
+  }
+  .panel-label{
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:1.6px;
+    padding:14px 18px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, var(--panel-2) 0%, #FFFFFF 100%);
+    text-transform:uppercase;
+    font-weight:500;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .panel-label::before{
+    content:"";
+    width:6px; height:6px;
+    border-radius:50%;
+    background:linear-gradient(135deg, var(--gold), var(--gold-2));
+    box-shadow:0 0 0 3px var(--gold-soft);
+    flex-shrink:0;
+  }
+  .panel-label b{
+    color:var(--text);
+    font-weight:700;
+    letter-spacing:1.2px;
+  }
+  .chart-wrap{ height:560px; background:#FFFFFF; }
+  .side-wrap{ height:420px; background:#FFFFFF; }
+  .news-wrap{ height:420px; background:#FFFFFF; }
+
+  /* ===== Signal badge & rows ===== */
+  #auto-status{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  #auto-status::before{
+    content:"";
+    width:14px; height:14px;
+    border:2px solid var(--gold-soft);
+    border-top-color:var(--gold);
+    border-radius:50%;
+    animation:spin 0.9s linear infinite;
+    flex-shrink:0;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .signal-badge{
+    padding:6px 14px !important;
+    border-radius:999px !important;
+    font-weight:700 !important;
+    font-size:12.5px !important;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+
+  .signal-rows{
+    background:linear-gradient(135deg, #FFFDF6 0%, #FFFFFF 100%);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px 18px;
+    font-family:'JetBrains Mono', 'Courier New', monospace;
+    font-size:14.5px;
+    line-height:2.1;
+  }
+  .signal-rows > div{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px dashed var(--border);
+    padding:2px 0;
+  }
+  .signal-rows > div:last-child{ border-bottom:none; }
+  .signal-rows .label{ color:var(--muted); font-size:12.5px; letter-spacing:1px; text-transform:uppercase; font-family:'Inter', sans-serif; font-weight:500; }
+
+  /* ===== Zone chart panel ===== */
+  #zone-svg{
+    background:linear-gradient(180deg, #FFFDF6 0%, #FFFFFF 100%);
+    border:1px solid var(--border);
+    border-radius:12px;
+  }
+  #zone-legend span{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 10px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:999px;
+    font-weight:500;
+  }
+  #zone-bos{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 14px;
+    font-family:'Inter', sans-serif;
+  }
+
+  .cta-gold{
+    display:inline-block;
+    margin-top:4px;
+    padding:11px 20px;
+    background:linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
+    color:#FFFFFF !important;
+    font-weight:700;
+    text-decoration:none;
+    border-radius:10px;
+    font-size:13px;
+    letter-spacing:0.4px;
+    box-shadow:0 6px 16px var(--gold-glow);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .cta-gold:hover{
+    transform:translateY(-1px);
+    box-shadow:0 10px 22px var(--gold-glow);
+  }
+
+  a{ color:var(--gold); text-decoration:none; font-weight:600; }
+  a:hover{ text-decoration:underline; }
+
+  /* ===== Disclaimer ===== */
+  .disclaimer{
+    margin-top:14px;
+    padding:20px 22px;
+    background:linear-gradient(135deg, #FFFDF6 0%, #FFFFFF 100%);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
+    font-size:12.5px;
+    color:var(--muted);
+    line-height:1.75;
+  }
+  .disclaimer b{color:var(--text); font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="ticker">
+    <div class="dot"></div>
+    XAU/USD · TERMINAL ANALISA TEKNIKAL + FUNDAMENTAL · DATA LIVE VIA TRADINGVIEW
+  </div>
+
+  <div class="header">
+    <div class="eyebrow">Gold Analysis Terminal</div>
+    <h1 class="title">XAU/USD — <span class="accent">Chart, Sinyal Multi-Timeframe &amp; Fundamental</span></h1>
+    <div class="subtitle">Ganti timeframe langsung di chart atau di panel sinyal untuk melihat rekomendasi teknikal per interval (1 menit s/d 1 bulan).</div>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab-btn active" data-tab="chart" onclick="switchTab('chart')">📈 Chart</button>
+    <button class="tab-btn" data-tab="signal" onclick="switchTab('signal')">🎯 Sinyal</button>
+    <button class="tab-btn" data-tab="zones" onclick="switchTab('zones')">📊 Zona</button>
+    <button class="tab-btn" data-tab="fundamental" onclick="switchTab('fundamental')">📰 Fundamental</button>
+  </div>
+
+  <!-- TAB: Chart -->
+  <div class="tab-content active" data-tab-content="chart">
+    <div class="panel">
+      <div class="panel-label"><b>CHART TEKNIKAL</b> — pilih timeframe & indikator di dalam chart</div>
+      <div class="chart-wrap">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+          {
+            "autosize": true,
+            "symbol": "OANDA:XAUUSD",
+            "interval": "15",
+            "timezone": "Asia/Jakarta",
+            "theme": "light",
+            "style": "1",
+            "locale": "id",
+            "enable_publishing": false,
+            "allow_symbol_change": false,
+            "studies": ["STD;SMA"],
+            "support_host": "https://www.tradingview.com"
+          }
+          </script>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Sinyal -->
+  <div class="tab-content" data-tab-content="signal">
+    <div class="panel">
+      <div class="panel-label"><b>SINYAL TEKNIKAL PER TIMEFRAME</b> — klik tab 1m / 5m / 15m / 1h / 4h / 1D</div>
+      <div class="side-wrap">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+          {
+            "interval": "15m",
+            "width": "100%",
+            "isTransparent": true,
+            "height": "100%",
+            "symbol": "OANDA:XAUUSD",
+            "showIntervalTabs": true,
+            "locale": "id",
+            "colorTheme": "light"
+          }
+          </script>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label"><b>SINYAL OTOMATIS</b> — Entry / SL / TP dari swing terakhir (auto-update)</div>
+      <div style="padding:20px;">
+        <div id="auto-status" style="font-size:13px; color:var(--muted); margin-bottom:14px;">Mengumpulkan data live untuk deteksi swing...</div>
+        <div id="auto-result" style="display:none;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+            <div id="auto-badge" class="signal-badge"></div>
+            <div style="font-size:11.5px; color:var(--muted); letter-spacing:0.4px;">berdasarkan swing terakhir · R:R 1:2</div>
+          </div>
+          <div class="signal-rows">
+            <div><span class="label">Entry</span>       <b id="a-entry" style="color:var(--gold)"></b></div>
+            <div><span class="label">Stop Loss</span>   <b id="a-sl" style="color:var(--down)"></b></div>
+            <div><span class="label">Take Profit</span> <b id="a-tp" style="color:var(--up)"></b></div>
+          </div>
+          <div style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6;" id="a-reason"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Zona -->
+  <div class="tab-content" data-tab-content="zones">
+    <div class="panel">
+      <div class="panel-label"><b>ZONA HARGA LIVE</b> — Support / Resistance / Swing / BoS (dari data kita sendiri)</div>
+      <div style="padding:18px;">
+        <svg id="zone-svg" viewBox="0 0 1200 300" style="width:100%; height:300px; display:block;"></svg>
+        <div id="zone-legend" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; font-size:11.5px; color:var(--muted);">
+          <span><span style="display:inline-block;width:12px;height:2px;background:var(--down);vertical-align:middle;"></span> Resistance (swing high)</span>
+          <span><span style="display:inline-block;width:12px;height:2px;background:var(--up);vertical-align:middle;"></span> Support (swing low)</span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--gold);vertical-align:middle;"></span> Harga sekarang</span>
+        </div>
+        <div id="zone-bos" style="margin-top:14px; font-size:13px; color:var(--text); min-height:20px;"></div>
+        <div style="font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          Order Block & Fair Value Gap butuh data candle asli — untuk itu masih perlu <a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener">buka chart TradingView</a>. Support/Resistance/Swing/BoS di atas sudah live dari data kita sendiri.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label"><b>ORDER BLOCK & FVG (lengkap)</b></div>
+      <div style="padding:18px; font-size:13.5px; line-height:1.75; color:var(--text-2);">
+        Untuk Order Block, Fair Value Gap, dan CHoCH secara detail, indikator komunitas <b style="color:var(--gold)">Smart Money Concepts</b>
+        tetap butuh chart penuh (data candle asli) — tidak bisa ditanam ke widget gratis ini.
+        <br><br>
+        <a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener" class="cta-gold">
+          Buka Chart Penuh + Tambah SMC →
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Fundamental -->
+  <div class="tab-content" data-tab-content="fundamental">
+    <div class="row2">
+      <div class="panel">
+        <div class="panel-label"><b>KALENDER EKONOMI</b> — event fundamental (NFP, suku bunga, inflasi, dll)</div>
+        <div class="side-wrap lazy-widget" data-widget="events">
+          <div class="lazy-placeholder" style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12.5px;">Memuat kalender...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label"><b>BERITA & SENTIMEN FUNDAMENTAL</b> — headline terbaru terkait gold</div>
+        <div class="news-wrap lazy-widget" data-widget="timeline">
+          <div class="lazy-placeholder" style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12.5px;">Memuat berita...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <b>Cara pakai:</b> Panel <b>Sinyal Teknikal</b> di kanan atas adalah ringkasan otomatis Buy/Sell/Neutral berdasarkan puluhan indikator (MA, RSI, MACD, Stochastic, dll) —
+    klik tab timeframe (1m, 5m, 15m, 1h, 4h, 1D) untuk melihat sinyal di interval yang Anda mau trading. Chart di kiri untuk analisa visual manual (support/resistance, price action).
+    Berita & kalender ekonomi di bawah/kanan bawah untuk konteks fundamental — misalnya rilis data inflasi AS atau keputusan suku bunga The Fed biasanya menggerakkan gold signifikan.<br><br>
+    <b>Catatan penting:</b> Semua data disuplai oleh TradingView (real-time, gratis, tanpa perlu akun). Sinyal yang ditampilkan adalah hasil kalkulasi otomatis indikator teknikal,
+    <b>bukan nasihat keuangan</b> dan tidak menjamin profit. Selalu gabungkan dengan manajemen risiko (stop loss, position sizing) dan pertimbangan Anda sendiri sebelum membuka posisi.
+  </div>
+
+</div>
+
+<script>
+const POLL_MS = 30000;
+const LOOKBACK = 2; // ticks on each side to confirm a swing point (lowered so signal appears faster)
+const RR = 2;
+const STORAGE_KEY = 'goldPriceHistory';
+const STALE_MS = 15 * 60 * 1000; // discard history older than 15 minutes
+
+// === GANTI dengan Firebase Realtime Database URL Anda (lihat README untuk cara bikin, gratis) ===
+const FIREBASE_URL = 'https://gold-terminal-c3225-default-rtdb.asia-southeast1.firebasedatabase.app';
+const SYNC_ENABLED = !FIREBASE_URL.includes('GANTI-DENGAN');
+
+let priceHistory = [];
+
+function loadSavedHistory(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!Array.isArray(saved) || !saved.length) return;
+    const lastPoint = saved[saved.length - 1];
+    if (Date.now() - lastPoint.t > STALE_MS) return; // too old, start fresh
+    priceHistory = saved;
+  }catch(e){ /* ignore corrupt storage */ }
+}
+
+function saveHistory(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(priceHistory)); }catch(e){ /* storage full/unavailable */ }
+}
+
+async function syncFromRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    const res = await fetch(FIREBASE_URL + '/priceHistory.json');
+    const remote = await res.json();
+    if (Array.isArray(remote) && remote.length){
+      const remoteLast = remote[remote.length - 1];
+      const localLast = priceHistory.length ? priceHistory[priceHistory.length - 1] : null;
+      // Adopt remote data if it's fresher or this device has nothing yet
+      if (!localLast || remoteLast.t > localLast.t){
+        if (Date.now() - remoteLast.t <= STALE_MS) {
+          priceHistory = remote;
+          saveHistory();
+        }
+      }
+    }
+  }catch(e){ /* offline or firebase not reachable, silently fall back to local */ }
+}
+
+async function pushToRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    await fetch(FIREBASE_URL + '/priceHistory.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(priceHistory)
+    });
+  }catch(e){ /* offline, will retry next cycle */ }
+}
+
+loadSavedHistory();
+if (priceHistory.length) updateSignal();
+
+async function pollPrice(){
+  await syncFromRemote(); // catch up with other devices first
+  try{
+    const res = await fetch('https://api.gold-api.com/price/XAU');
+    const data = await res.json();
+    priceHistory.push({ t: Date.now(), price: data.price });
+    if (priceHistory.length > 300) priceHistory = priceHistory.slice(priceHistory.length - 300);
+    saveHistory();
+    pushToRemote(); // share this update with other devices
+    updateSignal();
+  }catch(e){
+    document.getElementById('auto-status').textContent = 'Gagal ambil data, mencoba lagi...';
+  }
+}
+
+function findSwings(prices){
+  const highs = [], lows = [];
+  for(let i = LOOKBACK; i < prices.length - LOOKBACK; i++){
+    const window = prices.slice(i - LOOKBACK, i + LOOKBACK + 1);
+    const center = prices[i];
+    if (center === Math.max(...window)) highs.push({ idx: i, price: center });
+    if (center === Math.min(...window)) lows.push({ idx: i, price: center });
+  }
+  return { highs, lows };
+}
+
+function sma(arr, n){
+  if (arr.length < n) return null;
+  const s = arr.slice(arr.length - n);
+  return s.reduce((a,b)=>a+b,0) / n;
+}
+
+function renderZoneChart(prices, highs, lows, current){
+  const svg = document.getElementById('zone-svg');
+  if (!svg) return;
+  const W = 1200, H = 300, PAD = 16;
+  if (prices.length < 2){ svg.innerHTML = ''; return; }
+
+  const pMin = Math.min(...prices), pMax = Math.max(...prices);
+  const range = (pMax - pMin) || 1;
+  const x = i => PAD + (i / (prices.length - 1)) * (W - PAD * 2);
+  const y = p => H - PAD - ((p - pMin) / range) * (H - PAD * 2);
+
+  let svgParts = [];
+
+  // subtle gradient area under price line
+  svgParts.push(`<defs>
+    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B8892B" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#B8892B" stop-opacity="0"/>
+    </linearGradient>
+  </defs>`);
+  const areaPts = prices.map((p, i) => `${x(i)},${y(p)}`).join(' ');
+  svgParts.push(`<polygon points="${PAD},${H-PAD} ${areaPts} ${W-PAD},${H-PAD}" fill="url(#areaGrad)"/>`);
+
+  // price line
+  const linePts = prices.map((p, i) => `${x(i)},${y(p)}`).join(' ');
+  svgParts.push(`<polyline points="${linePts}" fill="none" stroke="#B8892B" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`);
+
+  // last swing high (resistance) & swing low (support)
+  const lastHigh = highs.length ? highs[highs.length - 1] : null;
+  const lastLow = lows.length ? lows[lows.length - 1] : null;
+
+  if (lastHigh){
+    svgParts.push(`<line x1="${PAD}" y1="${y(lastHigh.price)}" x2="${W-PAD}" y2="${y(lastHigh.price)}" stroke="#D63A3A" stroke-width="1.4" stroke-dasharray="6 5"/>`);
+    svgParts.push(`<text x="${W-PAD}" y="${y(lastHigh.price)-8}" fill="#D63A3A" font-size="14" font-weight="700" font-family="JetBrains Mono, monospace" text-anchor="end">R $${lastHigh.price.toFixed(2)}</text>`);
+  }
+  if (lastLow){
+    svgParts.push(`<line x1="${PAD}" y1="${y(lastLow.price)}" x2="${W-PAD}" y2="${y(lastLow.price)}" stroke="#0E9F6E" stroke-width="1.4" stroke-dasharray="6 5"/>`);
+    svgParts.push(`<text x="${W-PAD}" y="${y(lastLow.price)+18}" fill="#0E9F6E" font-size="14" font-weight="700" font-family="JetBrains Mono, monospace" text-anchor="end">S $${lastLow.price.toFixed(2)}</text>`);
+  }
+
+  // swing dots
+  highs.forEach(h => svgParts.push(`<circle cx="${x(h.idx)}" cy="${y(h.price)}" r="4.5" fill="#D63A3A" stroke="#FFFFFF" stroke-width="1.5"/>`));
+  lows.forEach(l => svgParts.push(`<circle cx="${x(l.idx)}" cy="${y(l.price)}" r="4.5" fill="#0E9F6E" stroke="#FFFFFF" stroke-width="1.5"/>`));
+
+  // current price dot (halo + core)
+  svgParts.push(`<circle cx="${x(prices.length-1)}" cy="${y(current)}" r="12" fill="#B8892B" opacity="0.18"/>`);
+  svgParts.push(`<circle cx="${x(prices.length-1)}" cy="${y(current)}" r="6.5" fill="#B8892B" stroke="#FFFFFF" stroke-width="2"/>`);
+
+  svg.innerHTML = svgParts.join('');
+
+  // BoS detection: current price breaking beyond the last confirmed swing before it
+  const bosEl = document.getElementById('zone-bos');
+  if (bosEl){
+    if (lastHigh && current > lastHigh.price){
+      bosEl.innerHTML = `<b style="color:#0E9F6E;">▲ BoS Bullish</b> — harga menembus resistance $${lastHigh.price.toFixed(2)}, indikasi struktur berubah naik.`;
+    } else if (lastLow && current < lastLow.price){
+      bosEl.innerHTML = `<b style="color:#D63A3A;">▼ BoS Bearish</b> — harga menembus support $${lastLow.price.toFixed(2)}, indikasi struktur berubah turun.`;
+    } else {
+      bosEl.innerHTML = `<span style="color:var(--muted);">Harga masih dalam range Support-Resistance, belum ada BoS.</span>`;
+    }
+  }
+}
+
+function updateSignal(){
+  const prices = priceHistory.map(p => p.price);
+  const current = prices[prices.length - 1];
+  const fmt = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Update the inline zone chart whenever we have at least 2 points
+  if (prices.length >= 2){
+    const swingsForChart = prices.length >= LOOKBACK * 2 + 1 ? findSwings(prices) : { highs: [], lows: [] };
+    renderZoneChart(prices, swingsForChart.highs, swingsForChart.lows, current);
+  }
+
+  // EARLY FALLBACK: show a preliminary signal fast (from ~4 ticks / ~2 minutes)
+  // using session high/low, before full swing-confirmed logic kicks in.
+  if (prices.length >= 4 && prices.length < LOOKBACK * 2 + 5){
+    const sessHigh = Math.max(...prices);
+    const sessLow = Math.min(...prices);
+    const mid = (sessHigh + sessLow) / 2;
+    const dir = current >= mid ? 'buy' : 'sell';
+    const structure = dir === 'buy' ? sessLow : sessHigh;
+    const risk = Math.abs(current - structure);
+
+    if (risk > 0){
+      const tp = dir === 'buy' ? current + risk * RR : current - risk * RR;
+      showSignal(dir, current, structure, tp,
+        `Sinyal awal (sementara) dari range harga sesi ini (${prices.length} titik data). Akan otomatis upgrade ke versi lebih akurat berbasis swing terkonfirmasi dalam beberapa menit.`,
+        true);
+    } else {
+      document.getElementById('auto-status').textContent = `Mengumpulkan data live (${prices.length} titik)...`;
+    }
+    return;
+  }
+
+  if (prices.length < LOOKBACK * 2 + 5){
+    document.getElementById('auto-status').textContent =
+      `Mengumpulkan data live (${prices.length} titik, butuh sekitar ${LOOKBACK*2+5})...`;
+    return;
+  }
+
+  const { highs, lows } = findSwings(prices);
+  const lastHigh = highs.length ? highs[highs.length - 1].price : null;
+  const lastLow = lows.length ? lows[lows.length - 1].price : null;
+  const smaShort = sma(prices, 5);
+  const smaLong = sma(prices, 15);
+
+  if (lastHigh === null && lastLow === null){
+    document.getElementById('auto-status').textContent = 'Belum ada swing terkonfirmasi, menunggu data lebih banyak...';
+    document.getElementById('auto-status').style.display = 'block';
+    document.getElementById('auto-result').style.display = 'none';
+    return;
+  }
+
+  let dir, structure, reason;
+  const trendUp = smaShort !== null && smaLong !== null && smaShort > smaLong;
+
+  if (trendUp && lastLow !== null){
+    dir = 'buy';
+    structure = lastLow;
+    reason = `Tren SMA jangka pendek di atas jangka panjang (bias naik). SL ditempatkan di swing low terkonfirmasi terakhir.`;
+  } else if (!trendUp && lastHigh !== null){
+    dir = 'sell';
+    structure = lastHigh;
+    reason = `Tren SMA jangka pendek di bawah jangka panjang (bias turun). SL ditempatkan di swing high terkonfirmasi terakhir.`;
+  } else {
+    document.getElementById('auto-status').textContent = 'Struktur belum jelas, menunggu swing berikutnya...';
+    document.getElementById('auto-status').style.display = 'block';
+    document.getElementById('auto-result').style.display = 'none';
+    return;
+  }
+
+  const risk = Math.abs(current - structure);
+  if (risk === 0){
+    document.getElementById('auto-status').textContent = 'Harga terlalu dekat dengan struktur, menunggu jarak yang cukup...';
+    return;
+  }
+  const tp = dir === 'buy' ? current + risk * RR : current - risk * RR;
+  showSignal(dir, current, structure, tp,
+    reason + ' Sinyal otomatis, bukan rekomendasi personal — selalu cek dulu ke chart & panel Sinyal Teknikal di atas sebelum eksekusi.',
+    false);
+}
+
+function showSignal(dir, entry, sl, tp, reasonText, isPreliminary){
+  const fmt = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.getElementById('auto-status').style.display = 'none';
+  document.getElementById('auto-result').style.display = 'block';
+  const badge = document.getElementById('auto-badge');
+  badge.textContent = (dir === 'buy' ? '▲ BUY / LONG' : '▼ SELL / SHORT') + (isPreliminary ? ' (awal)' : '');
+  badge.style.background = dir === 'buy' ? 'var(--up-soft)' : 'var(--down-soft)';
+  badge.style.color = dir === 'buy' ? 'var(--up)' : 'var(--down)';
+  badge.style.border = '1px solid ' + (dir === 'buy' ? 'rgba(14,159,110,0.25)' : 'rgba(214,58,58,0.25)');
+
+  document.getElementById('a-entry').textContent = fmt(entry);
+  document.getElementById('a-sl').textContent = fmt(sl);
+  document.getElementById('a-tp').textContent = fmt(tp);
+  document.getElementById('a-reason').textContent = reasonText;
+}
+
+pollPrice();
+setInterval(pollPrice, POLL_MS);
+
+// Lazy-load calendar & news only (chart & technical analysis are static, loaded immediately via inline script)
+const widgetConfigs = {
+  timeline: {
+    src: 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js',
+    config: { feedMode: 'symbol', symbol: 'OANDA:XAUUSD', colorTheme: 'light', isTransparent: true, displayMode: 'regular', width: '100%', height: '100%', locale: 'id' }
+  },
+  events: {
+    src: 'https://s3.tradingview.com/external-embedding/embed-widget-events.js',
+    config: { colorTheme: 'light', isTransparent: true, width: '100%', height: '100%', locale: 'id', importanceFilter: '-1,0,1', countryFilter: 'us,eu,cn,jp,gb' }
+  }
+};
+
+function loadLazyWidget(container){
+  if (!container) return;
+  const type = container.dataset.widget;
+  const cfg = widgetConfigs[type];
+  if (!cfg || container.dataset.loaded) return;
+  container.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'tradingview-widget-container';
+  wrap.style.cssText = 'height:100%;width:100%';
+  const inner = document.createElement('div');
+  inner.className = 'tradingview-widget-container__widget';
+  inner.style.cssText = 'height:100%;width:100%';
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = cfg.src;
+  script.async = true;
+  script.text = JSON.stringify(cfg.config);
+  wrap.appendChild(inner);
+  wrap.appendChild(script);
+  container.appendChild(wrap);
+  container.dataset.loaded = '1';
+}
+
+function switchTab(tabId){
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.toggle('active', el.dataset.tab === tabId));
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', el.dataset.tabContent === tabId));
+  document.querySelectorAll(`.tab-content[data-tab-content="${tabId}"] .lazy-widget`).forEach(loadLazyWidget);
+}
+
+// Preload calendar & news quietly in the background after page settles,
+// so the Fundamental tab feels instant when clicked
+setTimeout(() => {
+  document.querySelectorAll('.lazy-widget').forEach((el, i) => {
+    setTimeout(() => loadLazyWidget(el), i * 800);
+  });
+}, 1500);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  });
+}
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+</body>
+</html>

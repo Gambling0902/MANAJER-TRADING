@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAU/USD Analysis Terminal</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" href="./favicon.png">
+<meta name="theme-color" content="#FAF7F0">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gold Terminal">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F1E7;
+    --bg-2:#FBF8F1;
+    --panel:#FFFFFF;
+    --panel-2:#FFFDF9;
+    --border:#E9E1CE;
+    --border-strong:#D9CDA9;
+    --gold:#B8892B;
+    --gold-2:#D4A845;
+    --gold-soft:#F1E4C0;
+    --gold-glow:rgba(184,137,43,0.18);
+    --text:#1E1A12;
+    --text-2:#3B3527;
+    --muted:#8A8168;
+    --muted-2:#B6AC90;
+    --up:#0E9F6E;
+    --up-soft:#E4F7EF;
+    --down:#D63A3A;
+    --down-soft:#FCE7E7;
+    --shadow-sm:0 1px 2px rgba(60,45,10,0.04), 0 1px 3px rgba(60,45,10,0.06);
+    --shadow-md:0 4px 12px rgba(60,45,10,0.06), 0 2px 4px rgba(60,45,10,0.04);
+    --shadow-lg:0 12px 32px rgba(60,45,10,0.08), 0 4px 12px rgba(60,45,10,0.05);
+    --radius:14px;
+    --radius-sm:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{background:var(--bg);}
+  body{
+    margin:0;
+    color:var(--text);
+    font-family:'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    padding:28px 24px 40px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(212,168,69,0.10), transparent 60%),
+      radial-gradient(900px 400px at 110% 0%, rgba(184,137,43,0.08), transparent 60%),
+      var(--bg);
+    min-height:100vh;
+  }
+  .container{ max-width:1400px; margin:0 auto; }
+
+  /* ===== Ticker ===== */
+  .ticker{
+    background:linear-gradient(135deg, #FFFFFF 0%, #FFFDF6 100%);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:10px 20px;
+    display:inline-flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:22px;
+    font-family:'JetBrains Mono', 'Courier New', monospace;
+    font-size:11.5px;
+    letter-spacing:1.4px;
+    color:var(--muted);
+    box-shadow:var(--shadow-sm);
+    text-transform:uppercase;
+    font-weight:500;
+  }
+  .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--up);
+    box-shadow:0 0 0 4px rgba(14,159,110,0.15), 0 0 10px rgba(14,159,110,0.6);
+    flex-shrink:0;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow:0 0 0 4px rgba(14,159,110,0.15), 0 0 10px rgba(14,159,110,0.6); }
+    50%   { box-shadow:0 0 0 7px rgba(14,159,110,0.05), 0 0 14px rgba(14,159,110,0.8); }
+  }
+
+  /* ===== Header ===== */
+  .header{
+    margin-bottom:26px;
+    padding:26px 30px;
+    background:linear-gradient(135deg, #FFFFFF 0%, #FDF9EE 100%);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-md);
+    position:relative;
+    overflow:hidden;
+  }
+  .header::before{
+    content:"";
+    position:absolute;
+    top:0; right:0; bottom:0;
+    width:200px;
+    background:
+      radial-gradient(circle at 100% 0%, var(--gold-soft), transparent 70%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--gold);
+    letter-spacing:3px;
+    margin-bottom:8px;
+    font-weight:600;
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:22px;height:2px;
+    background:linear-gradient(90deg, var(--gold), transparent);
+    display:inline-block;
+  }
+  .title{
+    font-family:'Playfair Display', Georgia, serif;
+    font-size:30px;
+    line-height:1.2;
+    font-weight:800;
+    color:var(--text);
+    margin:0 0 8px;
+    letter-spacing:-0.5px;
+  }
+  .title .accent{
+    background:linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .subtitle{
+    font-size:14px;
+    color:var(--muted);
+    max-width:820px;
+    line-height:1.6;
+  }
+
+  /* ===== Tabs ===== */
+  .tabbar{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:6px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:var(--shadow-sm);
+  }
+  .tabbar::-webkit-scrollbar{ height:0; }
+  .tab-btn{
+    flex-shrink:0;
+    background:transparent;
+    border:1px solid transparent;
+    color:var(--muted);
+    padding:11px 20px;
+    border-radius:10px;
+    font-size:13.5px;
+    font-weight:600;
+    font-family:'Inter', sans-serif;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .18s ease;
+    letter-spacing:0.1px;
+  }
+  .tab-btn:hover{
+    color:var(--text-2);
+    background:var(--gold-soft);
+  }
+  .tab-btn.active{
+    background:linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
+    color:#FFFFFF;
+    border-color:var(--gold);
+    box-shadow:0 4px 12px var(--gold-glow);
+  }
+  .tab-content{ display:none; animation:fadeIn .3s ease; }
+  .tab-content.active{ display:block; }
+  @keyframes fadeIn{
+    from{ opacity:0; transform:translateY(4px); }
+    to  { opacity:1; transform:translateY(0); }
+  }
+
+  /* ===== Grid ===== */
+  .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:18px;
+  }
+  @media (max-width: 900px){
+    .row2{ grid-template-columns: 1fr; }
+    body{ padding:18px 14px 30px; }
+    .title{ font-size:24px; }
+    .header{ padding:20px 20px; }
+  }
+
+  /* ===== Panel ===== */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:hidden;
+    margin-bottom:18px;
+    box-shadow:var(--shadow-md);
+    transition:box-shadow .25s ease, transform .25s ease;
+  }
+  .panel:hover{
+    box-shadow:var(--shadow-lg);
+  }
+  .panel-label{
+    font-size:11px;
+    color:var(--muted);
+    letter-spacing:1.6px;
+    padding:14px 18px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, var(--panel-2) 0%, #FFFFFF 100%);
+    text-transform:uppercase;
+    font-weight:500;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .panel-label::before{
+    content:"";
+    width:6px; height:6px;
+    border-radius:50%;
+    background:linear-gradient(135deg, var(--gold), var(--gold-2));
+    box-shadow:0 0 0 3px var(--gold-soft);
+    flex-shrink:0;
+  }
+  .panel-label b{
+    color:var(--text);
+    font-weight:700;
+    letter-spacing:1.2px;
+  }
+  .chart-wrap{ height:560px; background:#FFFFFF; }
+  .side-wrap{ height:420px; background:#FFFFFF; }
+  .news-wrap{ height:420px; background:#FFFFFF; }
+
+  /* ===== Signal badge & rows ===== */
+  #auto-status{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  #auto-status::before{
+    content:"";
+    width:14px; height:14px;
+    border:2px solid var(--gold-soft);
+    border-top-color:var(--gold);
+    border-radius:50%;
+    animation:spin 0.9s linear infinite;
+    flex-shrink:0;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .signal-badge{
+    padding:6px 14px !important;
+    border-radius:999px !important;
+    font-weight:700 !important;
+    font-size:12.5px !important;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+
+  .signal-rows{
+    background:linear-gradient(135deg, #FFFDF6 0%, #FFFFFF 100%);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px 18px;
+    font-family:'JetBrains Mono', 'Courier New', monospace;
+    font-size:14.5px;
+    line-height:2.1;
+  }
+  .signal-rows > div{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px dashed var(--border);
+    padding:2px 0;
+  }
+  .signal-rows > div:last-child{ border-bottom:none; }
+  .signal-rows .label{ color:var(--muted); font-size:12.5px; letter-spacing:1px; text-transform:uppercase; font-family:'Inter', sans-serif; font-weight:500; }
+
+  /* ===== Zone chart panel ===== */
+  #zone-svg{
+    background:linear-gradient(180deg, #FFFDF6 0%, #FFFFFF 100%);
+    border:1px solid var(--border);
+    border-radius:12px;
+  }
+  #zone-legend span{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 10px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:999px;
+    font-weight:500;
+  }
+  #zone-bos{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 14px;
+    font-family:'Inter', sans-serif;
+  }
+
+  .cta-gold{
+    display:inline-block;
+    margin-top:4px;
+    padding:11px 20px;
+    background:linear-gradient(135deg, var(--gold) 0%, var(--gold-2) 100%);
+    color:#FFFFFF !important;
+    font-weight:700;
+    text-decoration:none;
+    border-radius:10px;
+    font-size:13px;
+    letter-spacing:0.4px;
+    box-shadow:0 6px 16px var(--gold-glow);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .cta-gold:hover{
+    transform:translateY(-1px);
+    box-shadow:0 10px 22px var(--gold-glow);
+  }
+
+  a{ color:var(--gold); text-decoration:none; font-weight:600; }
+  a:hover{ text-decoration:underline; }
+
+  /* ===== Disclaimer ===== */
+  .disclaimer{
+    margin-top:14px;
+    padding:20px 22px;
+    background:linear-gradient(135deg, #FFFDF6 0%, #FFFFFF 100%);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
+    font-size:12.5px;
+    color:var(--muted);
+    line-height:1.75;
+  }
+  .disclaimer b{color:var(--text); font-weight:700;}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="ticker">
+    <div class="dot"></div>
+    XAU/USD · TERMINAL ANALISA TEKNIKAL + FUNDAMENTAL · DATA LIVE VIA TRADINGVIEW
+  </div>
+
+  <div id="session-widget-wrap" style="margin-bottom:22px; background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px 18px; box-shadow:var(--shadow-sm);">
+    <div style="font-size:10.5px; font-weight:700; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-bottom:10px;">Sesi Market (WIB / waktu lokal HP-mu otomatis)</div>
+    <div id="session-widget">Memuat status sesi...</div>
+    <div id="sync-status" style="margin-top:10px; font-size:10.5px; color:var(--muted-2); letter-spacing:0.3px;"></div>
+  </div>
+
+  <div class="header">
+    <div class="eyebrow">Gold Analysis Terminal</div>
+    <h1 class="title">XAU/USD — <span class="accent">Chart, Sinyal Multi-Timeframe &amp; Fundamental</span></h1>
+    <div class="subtitle">Ganti timeframe langsung di chart atau di panel sinyal untuk melihat rekomendasi teknikal per interval (1 menit s/d 1 bulan).</div>
+  </div>
+
+  <div class="tabbar">
+    <button class="tab-btn active" data-tab="chart" onclick="switchTab('chart')">📈 Chart</button>
+    <button class="tab-btn" data-tab="signal" onclick="switchTab('signal')">🎯 Sinyal</button>
+    <button class="tab-btn" data-tab="zones" onclick="switchTab('zones')">📊 Zona</button>
+    <button class="tab-btn" data-tab="fundamental" onclick="switchTab('fundamental')">📰 Fundamental</button>
+    <button class="tab-btn" data-tab="log" onclick="switchTab('log')">📋 Log</button>
+  </div>
+
+  <!-- TAB: Chart -->
+  <div class="tab-content active" data-tab-content="chart">
+    <div class="panel">
+      <div class="panel-label"><b>CHART TEKNIKAL</b> — pilih timeframe & indikator di dalam chart</div>
+      <div style="padding:0 20px; margin-top:14px; font-size:12px; color:var(--muted); line-height:1.6;">
+        💡 Mau lihat shading sesi Asia/London/NY langsung di candle chart ini? Klik ikon <b>"Indikator"</b> di toolbar chart di bawah → cari <b>"Sessions"</b> → pilih salah satu (gratis) → Add. Ini chart resmi TradingView, jadi indikator custom nggak bisa otomatis nempel setiap buka halaman — perlu ditambah manual sekali per sesi browsing. Kalau mau yang otomatis nempel selalu, cek shading sesi di tab <b>📊 Zona</b> — itu chart yang kita render sendiri.
+      </div>
+      <div class="chart-wrap">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+          {
+            "autosize": true,
+            "symbol": "OANDA:XAUUSD",
+            "interval": "15",
+            "timezone": "Asia/Jakarta",
+            "theme": "light",
+            "style": "1",
+            "locale": "id",
+            "enable_publishing": false,
+            "allow_symbol_change": false,
+            "studies": ["STD;SMA"],
+            "support_host": "https://www.tradingview.com"
+          }
+          </script>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Sinyal -->
+  <div class="tab-content" data-tab-content="signal">
+    <div class="panel">
+      <div class="panel-label"><b>SINYAL TEKNIKAL PER TIMEFRAME</b> — klik tab 1m / 5m / 15m / 1h / 4h / 1D</div>
+      <div class="side-wrap">
+        <div class="tradingview-widget-container" style="height:100%;width:100%">
+          <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+          {
+            "interval": "15m",
+            "width": "100%",
+            "isTransparent": true,
+            "height": "100%",
+            "symbol": "OANDA:XAUUSD",
+            "showIntervalTabs": true,
+            "locale": "id",
+            "colorTheme": "light"
+          }
+          </script>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label"><b>SINYAL OTOMATIS</b> — Entry / SL / TP dari swing terakhir (auto-update)</div>
+      <div id="session-warning" style="display:none; background:var(--down-soft); border:1px solid rgba(214,58,58,0.25); border-radius:10px; padding:12px 16px; font-size:12.5px; line-height:1.6; margin:0 20px 16px 20px; color:var(--text-2);"></div>
+      <div id="econ-warning" style="display:none; background:var(--gold-soft); border:1px solid var(--border-strong); border-radius:10px; padding:12px 16px; font-size:12.5px; line-height:1.6; margin:0 20px 16px 20px; color:var(--text-2);"></div>
+      <div style="padding:20px;">
+        <div id="auto-status" style="font-size:13px; color:var(--muted); margin-bottom:14px;">Mengumpulkan data live untuk deteksi swing...</div>
+        <div id="auto-result" style="display:none;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+            <div id="auto-badge" class="signal-badge"></div>
+            <div style="font-size:11.5px; color:var(--muted); letter-spacing:0.4px;">berdasarkan swing terakhir · R:R 1:2</div>
+          </div>
+          <div class="signal-rows">
+            <div><span class="label">Entry</span>       <b id="a-entry" style="color:var(--gold)"></b></div>
+            <div><span class="label">Stop Loss</span>   <b id="a-sl" style="color:var(--down)"></b></div>
+            <div><span class="label">Take Profit</span> <b id="a-tp" style="color:var(--up)"></b></div>
+          </div>
+          <div style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6;" id="a-reason"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label"><b>SINYAL INTRADAY</b> — entry taktis dari struktur 20 menit terakhir (independen dari sinyal utama), SL dibatasi maks 30 pip, TP bertingkat (TP1/TP2/TP MAX), otomatis lebih hati-hati saat sesi Asia saja yang aktif</div>
+      <div style="padding:20px;">
+        <div id="intraday-status" style="font-size:13px; color:var(--muted); margin-bottom:14px;">Mengumpulkan data live untuk deteksi setup intraday...</div>
+        <div id="intraday-result" style="display:none;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+            <div id="intraday-badge" class="signal-badge"></div>
+            <div style="font-size:11.5px; color:var(--muted); letter-spacing:0.4px;">berdasarkan swing terdekat · risiko dibatasi (bukan tebakan)</div>
+          </div>
+          <div class="signal-rows">
+            <div><span class="label">Entry</span>       <b id="i-entry" style="color:var(--gold)"></b></div>
+            <div><span class="label">Stop Loss</span>   <b id="i-sl" style="color:var(--down)"></b></div>
+            <div><span class="label">TP1 (WIN otomatis)</span> <b id="i-tp1" style="color:var(--up)"></b></div>
+            <div><span class="label">TP2 (partial)</span> <b id="i-tp2" style="color:var(--up)"></b></div>
+            <div><span class="label">TP MAX</span> <b id="i-tpmax" style="color:var(--up)"></b></div>
+          </div>
+          <div style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6;" id="i-reason"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label"><b>SINYAL DAILY / HOLD</b> — dari candle harian asli (30 hari), dihitung server-side tiap 15 menit lewat GitHub Actions (tetap update walau HP/laptop kamu mati), cocok buat di-hold sampai beberapa hari, bukan scalping</div>
+      <div style="padding:20px;">
+        <div id="daily-status" style="font-size:13px; color:var(--muted); margin-bottom:14px;">Menunggu update pertama dari GitHub Actions (jalan tiap 15 menit)...</div>
+        <div id="daily-result" style="display:none;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+            <div id="daily-badge" class="signal-badge"></div>
+            <div style="font-size:11.5px; color:var(--muted); letter-spacing:0.4px;">berdasarkan swing harian 10 hari · R:R 1:2</div>
+          </div>
+          <div class="signal-rows">
+            <div><span class="label">Entry</span>       <b id="d-entry" style="color:var(--gold)"></b></div>
+            <div><span class="label">Stop Loss</span>   <b id="d-sl" style="color:var(--down)"></b></div>
+            <div><span class="label">Take Profit</span> <b id="d-tp" style="color:var(--up)"></b></div>
+          </div>
+          <div style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.6;" id="d-reason"></div>
+        </div>
+        <div id="daily-lastrun" style="font-size:11px; color:var(--muted-2); margin-top:14px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Zona -->
+  <div class="tab-content" data-tab-content="zones">
+    <div class="panel">
+      <div class="panel-label"><b>ZONA HARGA LIVE</b> — Support / Resistance / Swing / BoS (dari data kita sendiri)</div>
+      <div style="padding:18px;">
+        <svg id="zone-svg" viewBox="0 0 1200 300" style="width:100%; height:300px; display:block;"></svg>
+        <div id="zone-legend" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; font-size:11.5px; color:var(--muted);">
+          <span><span style="display:inline-block;width:12px;height:2px;background:var(--down);vertical-align:middle;"></span> Resistance (swing high)</span>
+          <span><span style="display:inline-block;width:12px;height:2px;background:var(--up);vertical-align:middle;"></span> Support (swing low)</span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--gold);vertical-align:middle;"></span> Harga sekarang</span>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; font-size:11.5px; color:var(--muted);">
+          <span><span style="display:inline-block;width:12px;height:9px;background:rgba(100,149,237,0.35);vertical-align:middle;"></span> Sesi Asia</span>
+          <span><span style="display:inline-block;width:12px;height:9px;background:rgba(147,112,219,0.35);vertical-align:middle;"></span> Sesi London</span>
+          <span><span style="display:inline-block;width:12px;height:9px;background:rgba(255,165,0,0.35);vertical-align:middle;"></span> Sesi New York</span>
+          <span><span style="display:inline-block;width:12px;height:9px;background:rgba(14,159,110,0.45);vertical-align:middle;"></span> Overlap (likuiditas tinggi)</span>
+          <span><span style="display:inline-block;width:12px;height:9px;background:rgba(214,58,58,0.3);vertical-align:middle;"></span> Jeda antar sesi</span>
+        </div>
+        <div id="zone-bos" style="margin-top:14px; font-size:13px; color:var(--text); min-height:20px;"></div>
+        <div style="font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.6;">
+          Order Block & Fair Value Gap butuh data candle asli — untuk itu masih perlu <a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener">buka chart TradingView</a>. Support/Resistance/Swing/BoS di atas sudah live dari data kita sendiri.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-label"><b>ORDER BLOCK & FVG (lengkap)</b></div>
+      <div style="padding:18px; font-size:13.5px; line-height:1.75; color:var(--text-2);">
+        Untuk Order Block, Fair Value Gap, dan CHoCH secara detail, indikator komunitas <b style="color:var(--gold)">Smart Money Concepts</b>
+        tetap butuh chart penuh (data candle asli) — tidak bisa ditanam ke widget gratis ini.
+        <br><br>
+        <a href="https://www.tradingview.com/chart/?symbol=OANDA%3AXAUUSD" target="_blank" rel="noopener" class="cta-gold">
+          Buka Chart Penuh + Tambah SMC →
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Fundamental -->
+  <div class="tab-content" data-tab-content="fundamental">
+    <div class="row2">
+      <div class="panel">
+        <div class="panel-label"><b>KALENDER EKONOMI</b> — event fundamental (NFP, suku bunga, inflasi, dll)</div>
+        <div class="side-wrap lazy-widget" data-widget="events">
+          <div class="lazy-placeholder" style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12.5px;">Memuat kalender...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label"><b>BERITA & SENTIMEN FUNDAMENTAL</b> — headline terbaru terkait gold</div>
+        <div class="news-wrap lazy-widget" data-widget="timeline">
+          <div class="lazy-placeholder" style="height:100%; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12.5px;">Memuat berita...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Log -->
+  <div class="tab-content" data-tab-content="log">
+    <div class="panel">
+      <div class="panel-label"><b>RIWAYAT SINYAL</b> — statistik akurasi per jenis sinyal, filter di bawah biar nggak ketuker</div>
+      <div style="padding:20px;">
+        <div id="log-current" style="margin-bottom:18px;"></div>
+        <div id="log-current-intraday" style="margin-bottom:18px;"></div>
+        <div id="log-filter" style="display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap;">
+          <button class="log-filter-btn active" data-filter="all" style="flex-shrink:0; background:var(--gold); color:#fff; border:1px solid var(--gold); padding:7px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;">Semua</button>
+          <button class="log-filter-btn" data-filter="auto" style="flex-shrink:0; background:var(--panel-2); color:var(--muted); border:1px solid var(--border); padding:7px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;">Sinyal Otomatis</button>
+          <button class="log-filter-btn" data-filter="intraday" style="flex-shrink:0; background:var(--panel-2); color:var(--muted); border:1px solid var(--border); padding:7px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;">⚡ Intraday</button>
+          <button class="log-filter-btn" data-filter="daily" style="flex-shrink:0; background:var(--panel-2); color:var(--muted); border:1px solid var(--border); padding:7px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;">📅 Daily</button>
+        </div>
+        <div id="log-stats" style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;">
+          <div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:11px; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">TOTAL SINYAL</div>
+            <div id="stat-total" style="font-size:22px; font-weight:800; color:var(--text);">0</div>
+          </div>
+          <div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:11px; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">WIN RATE</div>
+            <div id="stat-winrate" style="font-size:22px; font-weight:800; color:var(--gold);">–</div>
+          </div>
+          <div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
+            <div style="font-size:11px; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">W / L / EXPIRED</div>
+            <div id="stat-wl" style="font-size:16px; font-weight:700; color:var(--text); margin-top:3px;">0 / 0 / 0</div>
+          </div>
+        </div>
+        <div id="log-list" style="display:flex; flex-direction:column; gap:8px;">
+          <div style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">Belum ada riwayat sinyal. Log akan mulai terisi begitu sinyal pertama selesai (kena TP/SL, atau expired).</div>
+        </div>
+        <div style="font-size:11px; color:var(--muted); margin-top:16px; line-height:1.6; border-top:1px solid var(--border); padding-top:14px;">
+          Log ini mengukur akurasi <b>logika sinyal otomatis kita</b> (bukan P&L trading Anda beneran — nggak menghitung lot size/slippage broker).
+          Baru bermakna statistik setelah terkumpul cukup banyak sinyal (idealnya 30+). Data tersimpan di device ini; kalau dibuka dari device lain, log-nya terpisah.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">
+    <b>Cara pakai:</b> Panel <b>Sinyal Teknikal</b> di kanan atas adalah ringkasan otomatis Buy/Sell/Neutral berdasarkan puluhan indikator (MA, RSI, MACD, Stochastic, dll) —
+    klik tab timeframe (1m, 5m, 15m, 1h, 4h, 1D) untuk melihat sinyal di interval yang Anda mau trading. Chart di kiri untuk analisa visual manual (support/resistance, price action).
+    Berita & kalender ekonomi di bawah/kanan bawah untuk konteks fundamental — misalnya rilis data inflasi AS atau keputusan suku bunga The Fed biasanya menggerakkan gold signifikan.<br><br>
+    <b>Catatan penting:</b> Semua data disuplai oleh TradingView (real-time, gratis, tanpa perlu akun). Sinyal yang ditampilkan adalah hasil kalkulasi otomatis indikator teknikal,
+    <b>bukan nasihat keuangan</b> dan tidak menjamin profit. Selalu gabungkan dengan manajemen risiko (stop loss, position sizing) dan pertimbangan Anda sendiri sebelum membuka posisi.
+  </div>
+
+</div>
+
+<script>
+const POLL_MS = 30000;
+const LOOKBACK = 2; // ticks on each side to confirm a swing point (lowered so signal appears faster)
+const RR = 2;
+const STORAGE_KEY = 'goldPriceHistory';
+const STALE_MS = 15 * 60 * 1000; // discard history older than 15 minutes
+
+// === GANTI dengan Firebase Realtime Database URL Anda (lihat README untuk cara bikin, gratis) ===
+const FIREBASE_URL = 'https://gold-terminal-c3225-default-rtdb.asia-southeast1.firebasedatabase.app';
+const SYNC_ENABLED = !FIREBASE_URL.includes('GANTI-DENGAN');
+
+let priceHistory = [];
+
+function loadSavedHistory(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!Array.isArray(saved) || !saved.length) return;
+    const lastPoint = saved[saved.length - 1];
+    if (Date.now() - lastPoint.t > STALE_MS) return; // too old, start fresh
+    priceHistory = saved;
+  }catch(e){ /* ignore corrupt storage */ }
+}
+
+function saveHistory(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(priceHistory)); }catch(e){ /* storage full/unavailable */ }
+}
+
+async function syncFromRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    const res = await fetch(FIREBASE_URL + '/priceHistory.json');
+    const remote = await res.json();
+    if (Array.isArray(remote) && remote.length){
+      const remoteLast = remote[remote.length - 1];
+      const localLast = priceHistory.length ? priceHistory[priceHistory.length - 1] : null;
+      // Adopt remote data if it's fresher or this device has nothing yet
+      if (!localLast || remoteLast.t > localLast.t){
+        if (Date.now() - remoteLast.t <= STALE_MS) {
+          priceHistory = remote;
+          saveHistory();
+        }
+      }
+    }
+  }catch(e){ /* offline or firebase not reachable, silently fall back to local */ }
+}
+
+async function pushToRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    await fetch(FIREBASE_URL + '/priceHistory.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(priceHistory)
+    });
+  }catch(e){ /* offline, will retry next cycle */ }
+}
+
+loadSavedHistory();
+
+const STATE_KEY = 'goldSignalState';
+const ENTRY_WINDOW_MS = 60 * 60 * 1000; // 1 jam waktu tunggu harga menyentuh entry ("momentum window")
+const SAFETY_TIMEOUT_MS = 48 * 60 * 60 * 1000; // jaring pengaman kalau posisi ACTIVE nyangkut kelamaan
+let currentSignal = null; // { dir, entry, sl, tp, reasonText, isPreliminary, createdAt, entryDeadline, status:'pending'|'active', triggeredAt }
+// signalUpdatedAt = timestamp sinyal LOKAL terakhir diubah. Dipakai untuk memutuskan mana yang lebih baru
+// saat sync antar device (web & app) -- device dengan timestamp lebih besar yang menang.
+let signalUpdatedAt = 0;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    currentSignal = parsed.signal !== undefined ? parsed.signal : parsed; // backward-compat format lama
+    signalUpdatedAt = parsed.updatedAt || 0;
+  }catch(e){}
+}
+
+function saveState(){
+  try{ localStorage.setItem(STATE_KEY, JSON.stringify({ signal: currentSignal, updatedAt: signalUpdatedAt })); }catch(e){}
+}
+
+// Panggil ini SETIAP KALI currentSignal berubah (buka sinyal baru, pending->active, atau resolve).
+// Menyimpan lokal + broadcast ke Firebase supaya web & app HP langsung sinkron, bukan cuma
+// menyimpan ke localStorage device ini sendiri (itu yang bikin sinyal beda antar device sebelumnya).
+function touchSignalState(){
+  signalUpdatedAt = Date.now();
+  saveState();
+  pushSignalToRemote();
+}
+
+async function syncSignalFromRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    const res = await fetch(FIREBASE_URL + '/signalState.json');
+    const remote = await res.json();
+    if (remote && typeof remote.updatedAt === 'number' && remote.updatedAt > signalUpdatedAt){
+      currentSignal = remote.signal;
+      signalUpdatedAt = remote.updatedAt;
+      saveState();
+    }
+  }catch(e){ /* offline, pakai state lokal dulu */ }
+}
+
+async function pushSignalToRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    await fetch(FIREBASE_URL + '/signalState.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signal: currentSignal, updatedAt: signalUpdatedAt })
+    });
+  }catch(e){ /* offline, akan tersinkron di poll berikutnya */ }
+}
+
+// ===== Indicator helpers for signal-quality filtering =====
+function computeRSI(prices, period){
+  period = period || 14;
+  if (prices.length < period + 1) return null;
+  let gains = 0, losses = 0;
+  for (let i = prices.length - period; i < prices.length; i++){
+    const diff = prices[i] - prices[i - 1];
+    if (diff >= 0) gains += diff; else losses -= diff;
+  }
+  const avgGain = gains / period, avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+// Rata-rata perubahan harga absolut antar tick, dipakai sebagai proxy volatilitas (mirip ATR)
+// karena kita hanya punya data tick harga, bukan candle OHLC penuh.
+function computeVolatility(prices, period){
+  period = period || 14;
+  if (prices.length < period + 1) return null;
+  let sum = 0;
+  for (let i = prices.length - period; i < prices.length; i++){
+    sum += Math.abs(prices[i] - prices[i - 1]);
+  }
+  return sum / period;
+}
+
+// ===== Sesi Market: Asia (Tokyo), London, New York =====
+// Jam dalam UTC, approx (bisa geser ~1 jam saat pergantian DST US/Eropa 2x setahun).
+const SESSIONS = [
+  { key: 'asia',   label: 'Asia (Tokyo)', startUTC: 0,  endUTC: 9  },
+  { key: 'london', label: 'London',       startUTC: 8,  endUTC: 17 },
+  { key: 'ny',     label: 'New York',     startUTC: 13, endUTC: 22 }
+];
+
+function getSessionStatus(){
+  const now = new Date();
+  const h = now.getUTCHours() + now.getUTCMinutes() / 60;
+  return SESSIONS.map(s => ({ ...s, active: h >= s.startUTC && h < s.endUTC }));
+}
+
+function renderSessionWidget(){
+  const el = document.getElementById('session-widget');
+  if (!el) return;
+  const statuses = getSessionStatus();
+  const activeOnes = statuses.filter(s => s.active);
+  const activeCount = activeOnes.length;
+
+  let liquidityLabel, liquidityColor;
+  if (activeCount >= 2){
+    liquidityLabel = '● LIKUIDITAS TINGGI — sesi overlap';
+    liquidityColor = 'var(--up)';
+  } else if (activeCount === 1 && activeOnes[0].key === 'asia'){
+    liquidityLabel = '● LIKUIDITAS RENDAH — sesi Asia saja';
+    liquidityColor = 'var(--down)';
+  } else if (activeCount === 1){
+    liquidityLabel = '● LIKUIDITAS NORMAL';
+    liquidityColor = 'var(--gold)';
+  } else {
+    liquidityLabel = '● LIKUIDITAS SANGAT RENDAH — jeda antar sesi';
+    liquidityColor = 'var(--down)';
+  }
+
+  el.innerHTML = `<div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+    ${statuses.map(s => `<div style="display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; background:${s.active ? 'var(--up-soft)' : 'var(--panel-2)'}; border:1px solid ${s.active ? 'rgba(14,159,110,0.3)' : 'var(--border)'};">
+        <span style="width:7px;height:7px;border-radius:50%; background:${s.active ? 'var(--up)' : 'var(--muted-2)'};${s.active ? 'box-shadow:0 0 6px rgba(14,159,110,0.7);' : ''}"></span>
+        <span style="font-size:11.5px; font-weight:600; color:${s.active ? 'var(--text)' : 'var(--muted)'};">${s.label}</span>
+      </div>`).join('')}
+    <div style="margin-left:auto; font-size:11px; font-weight:700; color:${liquidityColor}; white-space:nowrap;">${liquidityLabel}</div>
+  </div>`;
+
+  const warnEl = document.getElementById('session-warning');
+  if (warnEl){
+    if (activeCount === 0){
+      warnEl.style.display = 'block';
+      warnEl.innerHTML = '🌙 <b>Jeda antar sesi (New York sudah tutup, Asia belum buka)</b> — volume order sangat tipis, spread bisa melebar dan pergerakan harga kurang bisa diandalkan untuk analisa struktur. Sinyal otomatis baru dijeda sementara sampai sesi berikutnya buka.';
+    } else if (activeCount === 1 && activeOnes[0].key === 'asia'){
+      warnEl.style.display = 'block';
+      warnEl.innerHTML = '🌏 <b>Sesi Asia saja yang aktif</b> — likuiditas lebih tipis dibanding overlap London/New York, rawan false break di range sempit. Gunakan sinyal lebih hati-hati / pertimbangkan size lebih kecil.';
+    } else {
+      warnEl.style.display = 'none';
+    }
+  }
+}
+renderSessionWidget();
+setInterval(renderSessionWidget, 60000);
+
+const ECON_FEED = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+const ECON_POLL_MS = 15 * 60 * 1000;
+let upcomingHighImpact = null;
+
+async function checkEconomicEvents(){
+  try{
+    const res = await fetch(ECON_FEED);
+    const events = await res.json();
+    const now = Date.now();
+    const WINDOW_BEFORE = -30 * 60 * 1000;
+    const WINDOW_AFTER = 3 * 60 * 60 * 1000;
+
+    const relevant = events
+      .filter(e => e.country === 'USD' && e.impact === 'High')
+      .map(e => ({ ...e, ts: new Date(e.date).getTime() }))
+      .filter(e => (e.ts - now) > WINDOW_BEFORE && (e.ts - now) < WINDOW_AFTER)
+      .sort((a, b) => a.ts - b.ts);
+
+    if (relevant.length){
+      const e = relevant[0];
+      upcomingHighImpact = { title: e.title, minutesUntil: Math.round((e.ts - now) / 60000) };
+    } else {
+      upcomingHighImpact = null;
+    }
+    renderEconWarning();
+  }catch(e){ /* feed unreachable, silently skip */ }
+}
+
+function renderEconWarning(){
+  const el = document.getElementById('econ-warning');
+  if (!el) return;
+  if (!upcomingHighImpact){ el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const { title, minutesUntil } = upcomingHighImpact;
+  const when = minutesUntil >= 0
+    ? `dalam ${minutesUntil < 60 ? minutesUntil + ' menit' : Math.round(minutesUntil/60) + ' jam'}`
+    : `${Math.abs(minutesUntil)} menit lalu`;
+  el.innerHTML = `⚠️ <b>Rilis data fundamental high-impact (USD): "${title}"</b> ${when}. Volatilitas gold bisa melonjak di sekitar waktu ini — pertimbangkan perbesar jarak SL atau tunggu sampai rilis selesai sebelum entry.`;
+}
+
+const SESSION_BAND_COLORS = {
+  asia:    'rgba(100,149,237,0.10)',
+  london:  'rgba(147,112,219,0.10)',
+  ny:      'rgba(255,165,0,0.10)',
+  overlap: 'rgba(14,159,110,0.14)',
+  dead:    'rgba(214,58,58,0.07)'
+};
+
+const PIP = 0.1;
+const INTRADAY_LOOKBACK = 5; // window swing lebih lebar dari sinyal utama (LOOKBACK=2) supaya struktur lebih valid, bukan noise 1-2 tick
+const INTRADAY_MIN_RISK = 10 * PIP;   // $1.00 floor -- di bawah ini dianggap "tipis tisu", sinyal di-skip
+const INTRADAY_MAX_RISK = 30 * PIP;   // $3.00 cap tunggal -- SL intraday nggak pernah lebih dari 30 pip
+// Multi-target TP, dihitung dari risk (jarak entry->SL) yang sama:
+//   TP1   = amanin profit cepat (RR 1:1) -- begitu kesentuh, sistem langsung catat WIN & cari sinyal baru
+//   TP2   = target partial (RR 1:2) -- referensi kalau mau hold manual lebih lanjut
+//   TPMAX = target penuh dari struktur analisa (RR 1:3) -- referensi paling jauh
+const INTRADAY_TP1_RR = 1;
+const INTRADAY_TP2_RR = 2;
+const INTRADAY_TPMAX_RR = 3;
+// Window pendek (bukan seluruh priceHistory) -- supaya struktur yang dipakai intraday BENERAN beda
+// dari sinyal utama (yang pakai keseluruhan history), bukan cuma variasi lookback dari data identik.
+// 40 tick x 30 detik/tick =~ 20 menit terakhir.
+const INTRADAY_WINDOW_TICKS = 40;
+const INTRADAY_STATE_KEY = 'goldIntradayState';
+const INTRADAY_ENTRY_WINDOW_MS = 30 * 60 * 1000;      // 30 menit -- lebih pendek dari sinyal utama karena sifatnya taktis
+const INTRADAY_SAFETY_TIMEOUT_MS = 12 * 60 * 60 * 1000; // jaring pengaman 12 jam
+let currentIntraday = null; // { dir, entry, sl, tp1, tp2, tpMax, reasonText, createdAt, entryDeadline, status:'pending'|'active', triggeredAt }
+let intradayUpdatedAt = 0;
+
+checkEconomicEvents();
+setInterval(checkEconomicEvents, ECON_POLL_MS);
+
+loadState();
+if (priceHistory.length) updateSignal();
+loadIntradayState();
+if (priceHistory.length) updateIntradaySignal();
+
+// ===== SINYAL DAILY / HOLD -- read-only, dihitung server-side oleh GitHub Actions =====
+// Client cuma BACA hasilnya dari Firebase (dailySignalState), tidak menghitung ulang,
+// karena butuh candle harian asli yang tidak bisa didapat dari data tick browser.
+const DAILY_STALE_WARN_MS = 40 * 60 * 1000; // kalau GitHub Actions berhenti update >40 menit, kasih tau
+let lastDailyFetchOk = false;
+
+async function fetchDailySignal(){
+  if (!SYNC_ENABLED) return;
+  try{
+    const res = await fetch(FIREBASE_URL + '/dailySignalState.json');
+    const remote = await res.json();
+    renderDailySignal(remote);
+    lastDailyFetchOk = true;
+  }catch(e){
+    lastDailyFetchOk = false;
+  }
+}
+
+function renderDailySignal(remote){
+  const statusEl = document.getElementById('daily-status');
+  const resultEl = document.getElementById('daily-result');
+  const lastRunEl = document.getElementById('daily-lastrun');
+  if (!statusEl) return;
+
+  if (!remote || !remote.updatedAt){
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    statusEl.textContent = 'Menunggu update pertama dari GitHub Actions (jalan tiap 15 menit)...';
+    return;
+  }
+
+  const ageMs = Date.now() - remote.updatedAt;
+  if (lastRunEl){
+    const ageMin = Math.round(ageMs / 60000);
+    lastRunEl.textContent = remote.lastRun
+      ? `Update terakhir dari GitHub Actions: ${ageMin < 1 ? 'baru saja' : ageMin + ' menit lalu'}${ageMs > DAILY_STALE_WARN_MS ? ' — ⚠️ lebih lama dari biasanya, cek tab Actions di GitHub repo' : ''}`
+      : '';
+  }
+
+  const t = remote.signal;
+  if (!t){
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    statusEl.textContent = 'Belum ada setup daily yang valid saat ini (belum ada bias jelas atau baru saja resolve) — dicek ulang tiap 15 menit.';
+    return;
+  }
+
+  statusEl.style.display = 'none';
+  resultEl.style.display = 'block';
+  const fmt = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const dirLabel = t.dir === 'buy' ? 'BUY' : 'SELL';
+  const badgeEl = document.getElementById('daily-badge');
+  const statusTag = t.status === 'active' ? ' (ACTIVE)' : ' (PENDING)';
+  badgeEl.textContent = (t.dir === 'buy' ? 'BUY / LONG ▲' : 'SELL / SHORT ▼') + statusTag;
+  badgeEl.style.background = t.dir === 'buy' ? 'var(--up-soft)' : 'var(--down-soft)';
+  badgeEl.style.color = t.dir === 'buy' ? 'var(--up)' : 'var(--down)';
+  badgeEl.style.border = '1px solid ' + (t.dir === 'buy' ? 'rgba(14,159,110,0.25)' : 'rgba(214,58,58,0.25)');
+
+  document.getElementById('d-entry').textContent = fmt(t.entry);
+  document.getElementById('d-sl').textContent = fmt(t.sl);
+  document.getElementById('d-tp').textContent = fmt(t.tp);
+
+  let lockNote;
+  if (t.status === 'active'){
+    lockNote = '<b style="color:var(--up)">Posisi ACTIVE</b> — entry sudah tersentuh, di-hold sampai kena TP/SL (bisa berhari-hari, dicek ulang tiap 15 menit oleh GitHub Actions).';
+  } else {
+    const hoursLeft = Math.max(0, ((t.entryDeadline - Date.now()) / 3600000)).toFixed(1);
+    lockNote = `<b style="color:var(--gold)">Menunggu entry — ~${hoursLeft} jam lagi sebelum dianggap expired</b> — kalau harga belum menyentuh entry, bot server-side otomatis analisa ulang.`;
+  }
+  document.getElementById('d-reason').innerHTML = (t.reason || '') + '<br><br>' + lockNote;
+}
+
+fetchDailySignal();
+setInterval(fetchDailySignal, POLL_MS);
+
+let lastSyncAt = 0;
+function renderSyncStatus(){
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (!SYNC_ENABLED){ el.textContent = ''; return; }
+  const secAgo = Math.round((Date.now() - lastSyncAt) / 1000);
+  el.textContent = lastSyncAt
+    ? `🔄 Sinkron lintas device (web ⇄ HP) — update terakhir ${secAgo < 5 ? 'baru saja' : secAgo + ' detik lalu'}`
+    : '🔄 Menyinkronkan dengan device lain...';
+}
+
+async function pollPrice(){
+  // Tarik state terbaru (harga, sinyal, log) dari device lain DULU sebelum analisa apapun --
+  // ini yang bikin sinyal & log konsisten antara web dan app HP, bukan cuma priceHistory.
+  await Promise.all([ syncFromRemote(), syncSignalFromRemote(), syncIntradayFromRemote(), syncLogFromRemote() ]);
+  lastSyncAt = Date.now();
+  renderSyncStatus();
+  try{
+    const res = await fetch('https://api.gold-api.com/price/XAU');
+    const data = await res.json();
+    priceHistory.push({ t: Date.now(), price: data.price });
+    if (priceHistory.length > 300) priceHistory = priceHistory.slice(priceHistory.length - 300);
+    saveHistory();
+    pushToRemote(); // share this update with other devices
+    updateSignal();
+    processTracking(data.price);
+    updateIntradaySignal();
+    processIntradayTracking(data.price);
+    renderLogTab();
+  }catch(e){
+    document.getElementById('auto-status').textContent = 'Gagal ambil data, mencoba lagi...';
+  }
+}
+
+// Begitu tab/app kembali aktif (dibuka lagi dari background, layar dinyalakan lagi, dsb),
+// langsung poll saat itu juga -- jangan nunggu siklus 30 detik berikutnya. Ini memperkecil jendela
+// waktu di mana harga sudah kena SL/TP di device lain tapi device ini belum tahu.
+let lastVisiblePollAt = 0;
+function pollIfVisible(){
+  if (document.visibilityState !== 'visible') return;
+  if (Date.now() - lastVisiblePollAt < 3000) return; // debounce
+  lastVisiblePollAt = Date.now();
+  pollPrice();
+}
+document.addEventListener('visibilitychange', pollIfVisible);
+window.addEventListener('focus', pollIfVisible);
+
+function findSwings(prices){
+  const highs = [], lows = [];
+  for(let i = LOOKBACK; i < prices.length - LOOKBACK; i++){
+    const window = prices.slice(i - LOOKBACK, i + LOOKBACK + 1);
+    const center = prices[i];
+    if (center === Math.max(...window)) highs.push({ idx: i, price: center });
+    if (center === Math.min(...window)) lows.push({ idx: i, price: center });
+  }
+  return { highs, lows };
+}
+
+function sma(arr, n){
+  if (arr.length < n) return null;
+  const s = arr.slice(arr.length - n);
+  return s.reduce((a,b)=>a+b,0) / n;
+}
+
+function getSessionForTimestamp(t){
+  const d = new Date(t);
+  const h = d.getUTCHours() + d.getUTCMinutes() / 60;
+  const active = SESSIONS.filter(s => h >= s.startUTC && h < s.endUTC);
+  if (active.length >= 2) return { type: 'overlap', label: 'Overlap' };
+  if (active.length === 1) return { type: active[0].key, label: active[0].label };
+  return { type: 'dead', label: 'Jeda' };
+}
+
+// Chart ini ("Zona") sepenuhnya kita render sendiri (bukan iframe pihak ketiga), jadi shading sesi
+// bisa ditempel langsung di sini secara akurat & otomatis update. Untuk chart TradingView di tab
+// "Chart" itu iframe resmi TradingView -- kita nggak bisa auto-suntik indikator custom ke situ tanpa
+// akun TradingView berbayar; solusinya klik ikon "Indikator" di chart itu & cari "Sessions" manual
+// (lihat catatan di bawah legend Zona).
+function renderZoneChart(prices, highs, lows, current, times){
+  const svg = document.getElementById('zone-svg');
+  if (!svg) return;
+  const W = 1200, H = 300, PAD = 16;
+  if (prices.length < 2){ svg.innerHTML = ''; return; }
+
+  const pMin = Math.min(...prices), pMax = Math.max(...prices);
+  const range = (pMax - pMin) || 1;
+  const x = i => PAD + (i / (prices.length - 1)) * (W - PAD * 2);
+  const y = p => H - PAD - ((p - pMin) / range) * (H - PAD * 2);
+
+  let svgParts = [];
+
+  // ===== Session background bands (Asia/London/NY/overlap/jeda) =====
+  if (Array.isArray(times) && times.length === prices.length){
+    let bandStart = 0;
+    let bandInfo = getSessionForTimestamp(times[0]);
+    for (let i = 1; i <= prices.length; i++){
+      const info = i < prices.length ? getSessionForTimestamp(times[i]) : null;
+      if (!info || info.type !== bandInfo.type){
+        const x1 = x(bandStart);
+        const x2 = i < prices.length ? x(i) : (W - PAD);
+        svgParts.push(`<rect x="${x1.toFixed(1)}" y="0" width="${Math.max(0, x2 - x1).toFixed(1)}" height="${H}" fill="${SESSION_BAND_COLORS[bandInfo.type]}"/>`);
+        if (x2 - x1 > 42){
+          svgParts.push(`<text x="${((x1 + x2) / 2).toFixed(1)}" y="16" fill="#8A8168" font-size="9.5" font-weight="700" font-family="JetBrains Mono, monospace" text-anchor="middle" letter-spacing="1">${bandInfo.label.toUpperCase()}</text>`);
+        }
+        bandStart = i;
+        bandInfo = info;
+      }
+    }
+  }
+
+  // subtle gradient area under price line
+  svgParts.push(`<defs>
+    <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B8892B" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#B8892B" stop-opacity="0"/>
+    </linearGradient>
+  </defs>`);
+  const areaPts = prices.map((p, i) => `${x(i)},${y(p)}`).join(' ');
+  svgParts.push(`<polygon points="${PAD},${H-PAD} ${areaPts} ${W-PAD},${H-PAD}" fill="url(#areaGrad)"/>`);
+
+  // price line
+  const linePts = prices.map((p, i) => `${x(i)},${y(p)}`).join(' ');
+  svgParts.push(`<polyline points="${linePts}" fill="none" stroke="#B8892B" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`);
+
+  // last swing high (resistance) & swing low (support)
+  const lastHigh = highs.length ? highs[highs.length - 1] : null;
+  const lastLow = lows.length ? lows[lows.length - 1] : null;
+
+  if (lastHigh){
+    svgParts.push(`<line x1="${PAD}" y1="${y(lastHigh.price)}" x2="${W-PAD}" y2="${y(lastHigh.price)}" stroke="#D63A3A" stroke-width="1.4" stroke-dasharray="6 5"/>`);
+    svgParts.push(`<text x="${W-PAD}" y="${y(lastHigh.price)-8}" fill="#D63A3A" font-size="14" font-weight="700" font-family="JetBrains Mono, monospace" text-anchor="end">R $${lastHigh.price.toFixed(2)}</text>`);
+  }
+  if (lastLow){
+    svgParts.push(`<line x1="${PAD}" y1="${y(lastLow.price)}" x2="${W-PAD}" y2="${y(lastLow.price)}" stroke="#0E9F6E" stroke-width="1.4" stroke-dasharray="6 5"/>`);
+    svgParts.push(`<text x="${W-PAD}" y="${y(lastLow.price)+18}" fill="#0E9F6E" font-size="14" font-weight="700" font-family="JetBrains Mono, monospace" text-anchor="end">S $${lastLow.price.toFixed(2)}</text>`);
+  }
+
+  // swing dots
+  highs.forEach(h => svgParts.push(`<circle cx="${x(h.idx)}" cy="${y(h.price)}" r="4.5" fill="#D63A3A" stroke="#FFFFFF" stroke-width="1.5"/>`));
+  lows.forEach(l => svgParts.push(`<circle cx="${x(l.idx)}" cy="${y(l.price)}" r="4.5" fill="#0E9F6E" stroke="#FFFFFF" stroke-width="1.5"/>`));
+
+  // current price dot (halo + core)
+  svgParts.push(`<circle cx="${x(prices.length-1)}" cy="${y(current)}" r="12" fill="#B8892B" opacity="0.18"/>`);
+  svgParts.push(`<circle cx="${x(prices.length-1)}" cy="${y(current)}" r="6.5" fill="#B8892B" stroke="#FFFFFF" stroke-width="2"/>`);
+
+  svg.innerHTML = svgParts.join('');
+
+  // BoS detection: current price breaking beyond the last confirmed swing before it
+  const bosEl = document.getElementById('zone-bos');
+  if (bosEl){
+    if (lastHigh && current > lastHigh.price){
+      bosEl.innerHTML = `<b style="color:#0E9F6E;">▲ BoS Bullish</b> — harga menembus resistance $${lastHigh.price.toFixed(2)}, indikasi struktur berubah naik.`;
+    } else if (lastLow && current < lastLow.price){
+      bosEl.innerHTML = `<b style="color:#D63A3A;">▼ BoS Bearish</b> — harga menembus support $${lastLow.price.toFixed(2)}, indikasi struktur berubah turun.`;
+    } else {
+      bosEl.innerHTML = `<span style="color:var(--muted);">Harga masih dalam range Support-Resistance, belum ada BoS.</span>`;
+    }
+  }
+}
+
+function updateSignal(){
+  const prices = priceHistory.map(p => p.price);
+  const current = prices[prices.length - 1];
+
+  // Update the inline zone chart whenever we have at least 2 points
+  if (prices.length >= 2){
+    const swingsForChart = prices.length >= LOOKBACK * 2 + 1 ? findSwings(prices) : { highs: [], lows: [] };
+    const times = priceHistory.map(p => p.t);
+    renderZoneChart(prices, swingsForChart.highs, swingsForChart.lows, current, times);
+  }
+
+  // Kalau masih ada sinyal yang berjalan (PENDING nunggu entry, atau ACTIVE nunggu TP/SL),
+  // jangan analisa ulang -- cukup render status sinyal yang sudah ada.
+  // Sinyal baru hanya dibuat setelah yang lama resmi resolve (WIN/LOSS/EXPIRED) -- lihat processTracking().
+  if (currentSignal){
+    renderCurrentSignal();
+    return;
+  }
+
+  // Jangan buka sinyal BARU saat semua sesi major tutup (dead zone) -- likuiditas terlalu tipis,
+  // struktur swing gampang jadi noise/false break. Sinyal yang SUDAH berjalan tetap dipantau seperti biasa.
+  if (getSessionStatus().every(s => !s.active)){
+    document.getElementById('auto-status').textContent = 'Sesi market sedang jeda (New York tutup, Asia belum buka) — likuiditas terlalu tipis untuk analisa baru, menunggu sesi berikutnya buka...';
+    document.getElementById('auto-status').style.display = 'block';
+    document.getElementById('auto-result').style.display = 'none';
+    return;
+  }
+
+  // EARLY FALLBACK: sinyal awal cepat (dari ~4 tick / ~2 menit) pakai range sesi,
+  // dipakai hanya kalau data belum cukup untuk analisa swing+indikator penuh.
+  if (prices.length >= 4 && prices.length < LOOKBACK * 2 + 5){
+    const sessHigh = Math.max(...prices);
+    const sessLow = Math.min(...prices);
+    const mid = (sessHigh + sessLow) / 2;
+    const dir = current >= mid ? 'buy' : 'sell';
+    const structure = dir === 'buy' ? sessLow : sessHigh;
+    const risk = Math.abs(current - structure);
+
+    if (risk > 0){
+      const tp = dir === 'buy' ? current + risk * RR : current - risk * RR;
+      openSignal(dir, current, structure, tp,
+        `Sinyal awal (sementara) dari range harga sesi ini (${prices.length} titik data), sebelum data cukup untuk analisa swing + indikator penuh.`,
+        true);
+    } else {
+      document.getElementById('auto-status').textContent = `Mengumpulkan data live (${prices.length} titik)...`;
+    }
+    return;
+  }
+
+  if (prices.length < LOOKBACK * 2 + 5){
+    document.getElementById('auto-status').textContent =
+      `Mengumpulkan data live (${prices.length} titik, butuh sekitar ${LOOKBACK*2+5})...`;
+    return;
+  }
+
+  const { highs, lows } = findSwings(prices);
+  const lastHigh = highs.length ? highs[highs.length - 1].price : null;
+  const lastLow = lows.length ? lows[lows.length - 1].price : null;
+  const smaShort = sma(prices, 5);
+  const smaLong = sma(prices, 15);
+  const smaTrend = sma(prices, 30); // konfirmasi tren jangka lebih panjang, kalau data sudah cukup (opsional)
+  const rsi = computeRSI(prices, 14);
+  const vol = computeVolatility(prices, 14); // proxy ATR dari tick harga
+
+  if (lastHigh === null && lastLow === null){
+    document.getElementById('auto-status').textContent = 'Belum ada swing terkonfirmasi, menunggu data lebih banyak...';
+    document.getElementById('auto-status').style.display = 'block';
+    document.getElementById('auto-result').style.display = 'none';
+    return;
+  }
+
+  const trendUp = smaShort !== null && smaLong !== null && smaShort > smaLong;
+  const trendDown = smaShort !== null && smaLong !== null && smaShort < smaLong;
+  // Konfirmasi tambahan dari SMA jangka panjang (30 titik) kalau datanya sudah ada -- kalau belum, tidak memblokir
+  const trendConfirmBuy = smaTrend === null || smaShort > smaTrend;
+  const trendConfirmSell = smaTrend === null || smaShort < smaTrend;
+  // Filter RSI: hindari entry saat momentum sudah jenuh (overbought/oversold ekstrem)
+  const rsiOkBuy = rsi === null || (rsi >= 45 && rsi <= 78);
+  const rsiOkSell = rsi === null || (rsi >= 22 && rsi <= 55);
+
+  let dir, structure, reason;
+
+  if (trendUp && lastLow !== null && trendConfirmBuy && rsiOkBuy){
+    dir = 'buy';
+    structure = lastLow;
+    reason = `Tren SMA jangka pendek di atas jangka panjang (bias naik)${smaTrend !== null ? ', dikonfirmasi SMA30' : ''}${rsi !== null ? `, RSI ${rsi.toFixed(0)} (belum overbought)` : ''}. SL ditempatkan di swing low terkonfirmasi terakhir + buffer volatilitas.`;
+  } else if (trendDown && lastHigh !== null && trendConfirmSell && rsiOkSell){
+    dir = 'sell';
+    structure = lastHigh;
+    reason = `Tren SMA jangka pendek di bawah jangka panjang (bias turun)${smaTrend !== null ? ', dikonfirmasi SMA30' : ''}${rsi !== null ? `, RSI ${rsi.toFixed(0)} (belum oversold)` : ''}. SL ditempatkan di swing high terkonfirmasi terakhir + buffer volatilitas.`;
+  } else {
+    const why = (trendUp || trendDown)
+      ? 'ada bias tren tapi belum lolos filter konfirmasi (SMA30 / RSI) -- menghindari sinyal palsu'
+      : 'struktur & tren belum jelas';
+    document.getElementById('auto-status').textContent = `Menunggu setup lebih valid (${why})...`;
+    document.getElementById('auto-status').style.display = 'block';
+    document.getElementById('auto-result').style.display = 'none';
+    return;
+  }
+
+  // Buffer volatilitas pada SL: geser sedikit menjauh dari swing supaya tidak gampang kena noise/wick,
+  // tapi tetap dekat structure aslinya.
+  if (vol){
+    structure = dir === 'buy' ? structure - vol * 0.3 : structure + vol * 0.3;
+  }
+
+  const risk = Math.abs(current - structure);
+  const minRisk = vol ? vol * 1.2 : 0;
+  if (risk === 0 || risk < minRisk){
+    document.getElementById('auto-status').textContent = 'Harga terlalu dekat dengan struktur (risiko terlalu kecil / berpotensi noise), menunggu jarak yang cukup...';
+    document.getElementById('auto-status').style.display = 'block';
+    document.getElementById('auto-result').style.display = 'none';
+    return;
+  }
+  const tp = dir === 'buy' ? current + risk * RR : current - risk * RR;
+  openSignal(dir, current, structure, tp,
+    reason + ' Sinyal otomatis, bukan rekomendasi personal -- selalu cek dulu ke chart & panel Sinyal Teknikal di atas sebelum eksekusi.',
+    false);
+}
+
+// Buka sinyal baru berstatus PENDING (nunggu harga menyentuh entry).
+function openSignal(dir, entry, sl, tp, reasonText, isPreliminary){
+  const now = Date.now();
+  currentSignal = {
+    dir, entry, sl, tp, reasonText, isPreliminary,
+    createdAt: now,
+    entryDeadline: now + ENTRY_WINDOW_MS,
+    status: 'pending',
+    triggeredAt: null
+  };
+  touchSignalState();
+  renderCurrentSignal();
+}
+
+function renderCurrentSignal(){
+  if (!currentSignal) return;
+  const fmt = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const { dir, entry, sl, tp, reasonText, isPreliminary, status } = currentSignal;
+
+  document.getElementById('auto-status').style.display = 'none';
+  document.getElementById('auto-result').style.display = 'block';
+
+  const badge = document.getElementById('auto-badge');
+  const statusTag = status === 'active' ? ' (ACTIVE)' : ' (PENDING)';
+  badge.textContent = (dir === 'buy' ? 'BUY / LONG \u25b2' : 'SELL / SHORT \u25bc') + (isPreliminary ? ' (awal)' : '') + statusTag;
+  badge.style.background = dir === 'buy' ? 'var(--up-soft)' : 'var(--down-soft)';
+  badge.style.color = dir === 'buy' ? 'var(--up)' : 'var(--down)';
+  badge.style.border = '1px solid ' + (dir === 'buy' ? 'rgba(14,159,110,0.25)' : 'rgba(214,58,58,0.25)');
+
+  document.getElementById('a-entry').textContent = fmt(entry);
+  document.getElementById('a-sl').textContent = fmt(sl);
+  document.getElementById('a-tp').textContent = fmt(tp);
+
+  let lockNote;
+  if (status === 'active'){
+    lockNote = '<b style="color:var(--up)">Posisi ACTIVE</b> \u2014 entry sudah tersentuh, sinyal ini akan tetap tampil sampai harga kena Take Profit atau Stop Loss (tidak dibatasi waktu). Begitu resolve, bot langsung analisa ulang untuk sinyal berikutnya.';
+  } else {
+    const minutesLeft = Math.max(0, Math.round((currentSignal.entryDeadline - Date.now()) / 60000));
+    lockNote = `<b style="color:var(--gold)">Menunggu entry \u2014 ${minutesLeft} menit lagi sebelum dianggap expired</b> \u2014 kalau harga tidak menyentuh entry dalam waktu ini, momentum dianggap hilang dan bot otomatis analisa ulang untuk sinyal baru.`;
+  }
+  document.getElementById('a-reason').innerHTML = reasonText + '<br><br>' + lockNote;
+}
+
+// ===================================================================================
+// ===== SINYAL INTRADAY (engine terpisah dari Sinyal Otomatis di atas) =====
+// Tidak menyentuh/mengganti logic sinyal utama sama sekali -- state, log key (ditandai
+// type:'intraday'), dan tracking-nya berdiri sendiri.
+// Aturan sesuai request: SL wajib berbasis struktur teknikal asli (bukan noise tipis),
+// TAPI risikonya dibatasi supaya kerugian per sinyal kecil & terkontrol:
+//   - floor  : minimal 10 pip (di bawah ini dianggap noise, sinyal di-skip)
+//   - cap    : maksimal 20 pip normal, 30 pip kalau momentum kuat (RSI + tren align jelas)
+// Konvensi umum broker utk XAU/USD: 1 pip = $0.1
+// ===================================================================================
+function loadIntradayState(){
+  try{
+    const raw = localStorage.getItem(INTRADAY_STATE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    currentIntraday = parsed.signal !== undefined ? parsed.signal : parsed;
+    intradayUpdatedAt = parsed.updatedAt || 0;
+  }catch(e){}
+}
+function saveIntradayState(){
+  try{ localStorage.setItem(INTRADAY_STATE_KEY, JSON.stringify({ signal: currentIntraday, updatedAt: intradayUpdatedAt })); }catch(e){}
+}
+function touchIntradayState(){
+  intradayUpdatedAt = Date.now();
+  saveIntradayState();
+  pushIntradayToRemote();
+}
+async function syncIntradayFromRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    const res = await fetch(FIREBASE_URL + '/intradayState.json');
+    const remote = await res.json();
+    if (remote && typeof remote.updatedAt === 'number' && remote.updatedAt > intradayUpdatedAt){
+      currentIntraday = remote.signal;
+      intradayUpdatedAt = remote.updatedAt;
+      saveIntradayState();
+    }
+  }catch(e){}
+}
+async function pushIntradayToRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    await fetch(FIREBASE_URL + '/intradayState.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signal: currentIntraday, updatedAt: intradayUpdatedAt })
+    });
+  }catch(e){}
+}
+
+// Sama seperti findSwings() sinyal utama, tapi lookback bisa diatur -- tidak mengubah findSwings() asli.
+function findSwingsWindow(prices, lookback){
+  const highs = [], lows = [];
+  for(let i = lookback; i < prices.length - lookback; i++){
+    const window = prices.slice(i - lookback, i + lookback + 1);
+    const center = prices[i];
+    if (center === Math.max(...window)) highs.push({ idx: i, price: center });
+    if (center === Math.min(...window)) lows.push({ idx: i, price: center });
+  }
+  return { highs, lows };
+}
+
+function updateIntradaySignal(){
+  const statusEl = document.getElementById('intraday-status');
+  const resultEl = document.getElementById('intraday-result');
+  if (!statusEl || !resultEl) return;
+
+  // FIX: intraday sekarang cuma lihat window PENDEK terakhir (bukan seluruh priceHistory kayak
+  // sinyal utama). Ini yang bikin dua engine ini genuinely independen -- sebelumnya keduanya baca
+  // data identik dengan cuma beda parameter lookback, jadi gampang konvergen ke swing yang sama
+  // persis saat tren lagi bersih/dominan (itu sebabnya kemarin Entry/SL/TP-nya bisa sama persis).
+  const allPrices = priceHistory.map(p => p.price);
+  const prices = allPrices.slice(-INTRADAY_WINDOW_TICKS);
+  const current = prices[prices.length - 1];
+
+  if (currentIntraday){
+    renderIntradaySignal();
+    return;
+  }
+
+  const sessionNow = getSessionStatus();
+  const activeSessions = sessionNow.filter(s => s.active);
+  if (activeSessions.length === 0){
+    statusEl.textContent = 'Sesi market sedang jeda (New York tutup, Asia belum buka) — likuiditas terlalu tipis untuk sinyal intraday baru, menunggu sesi berikutnya buka...';
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+  const asiaOnly = activeSessions.length === 1 && activeSessions[0].key === 'asia';
+  const overlapSession = activeSessions.length >= 2;
+  const sessionLabel = activeSessions.map(s => s.label).join(' + ');
+
+  const needed = INTRADAY_LOOKBACK * 2 + 5;
+  if (prices.length < needed){
+    statusEl.textContent = `Mengumpulkan data live (${prices.length} titik, butuh sekitar ${needed})...`;
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  const { highs, lows } = findSwingsWindow(prices, INTRADAY_LOOKBACK);
+  const lastHigh = highs.length ? highs[highs.length - 1].price : null;
+  const lastLow = lows.length ? lows[lows.length - 1].price : null;
+  const smaShort = sma(prices, 5);
+  const smaLong = sma(prices, 15);
+  const rsi = computeRSI(prices, 14);
+  const vol = computeVolatility(prices, 14);
+
+  if (lastHigh === null && lastLow === null){
+    statusEl.textContent = 'Belum ada struktur swing intraday yang terkonfirmasi, menunggu data lebih banyak...';
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  const trendUp = smaShort !== null && smaLong !== null && smaShort > smaLong;
+  const trendDown = smaShort !== null && smaLong !== null && smaShort < smaLong;
+  const rsiOkBuy = rsi === null || (rsi >= 45 && rsi <= 80);
+  const rsiOkSell = rsi === null || (rsi >= 20 && rsi <= 55);
+  // Momentum "kuat" -- baru boleh pakai cap 30 pip; kalau tidak, tetap dibatasi 20 pip
+  const momentumValid = rsi !== null && ((trendUp && rsi >= 60) || (trendDown && rsi <= 40));
+
+  // Likuiditas sesi jadi FILTER, bukan cuma warning: pas Asia doang yang buka, harga gampang
+  // whipsaw/false break di range sempit -- intraday (yang SL-nya sengaja diketatin) cuma boleh
+  // ambil setup kalau momentumnya beneran jelas kuat, bukan bias tipis-tipis biasa.
+  if (asiaOnly && !momentumValid){
+    statusEl.textContent = 'Sesi Asia saja yang aktif (likuiditas tipis) dan momentum belum cukup kuat untuk setup intraday yang aman — menunggu London/New York buka, atau momentum lebih jelas...';
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  let dir, structure, reason;
+  if (trendUp && lastLow !== null && rsiOkBuy){
+    dir = 'buy'; structure = lastLow;
+    reason = `Setup intraday BUY (struktur ${INTRADAY_WINDOW_TICKS} tick terakhir, ~20 menit): SMA5 di atas SMA15 (bias naik jangka pendek)${rsi !== null ? `, RSI ${rsi.toFixed(0)}` : ''}. SL mengacu swing low terdekat yang terkonfirmasi.`;
+  } else if (trendDown && lastHigh !== null && rsiOkSell){
+    dir = 'sell'; structure = lastHigh;
+    reason = `Setup intraday SELL (struktur ${INTRADAY_WINDOW_TICKS} tick terakhir, ~20 menit): SMA5 di bawah SMA15 (bias turun jangka pendek)${rsi !== null ? `, RSI ${rsi.toFixed(0)}` : ''}. SL mengacu swing high terdekat yang terkonfirmasi.`;
+  } else {
+    statusEl.textContent = 'Menunggu setup intraday yang lebih valid (bias tren + RSI belum align)...';
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  if (vol){
+    structure = dir === 'buy' ? structure - vol * 0.3 : structure + vol * 0.3;
+  }
+
+  const risk = Math.abs(current - structure);
+
+  if (risk < INTRADAY_MIN_RISK){
+    statusEl.textContent = 'Struktur swing intraday terlalu dekat harga (berisiko noise/tisu), menunggu jarak yang cukup...';
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+  if (risk > INTRADAY_MAX_RISK){
+    // Struktur teknikalnya valid, tapi terlalu jauh untuk batas risiko intraday -- lewati, jangan dipaksa.
+    statusEl.textContent = `Struktur teknikal terdekat berjarak ~${Math.round(risk/PIP)} pip (di luar batas ${Math.round(INTRADAY_MAX_RISK/PIP)} pip), menunggu setup yang lebih dekat...`;
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  const sl = dir === 'buy' ? current - risk : current + risk;
+  const tp1 = dir === 'buy' ? current + risk * INTRADAY_TP1_RR : current - risk * INTRADAY_TP1_RR;
+  const tp2 = dir === 'buy' ? current + risk * INTRADAY_TP2_RR : current - risk * INTRADAY_TP2_RR;
+  const tpMax = dir === 'buy' ? current + risk * INTRADAY_TPMAX_RR : current - risk * INTRADAY_TPMAX_RR;
+
+  // ANTI-DOBEL: kalau sinyal utama lagi jalan (pending/active), SEARAH, dan level entry/SL-nya
+  // nyaris sama dengan setup intraday ini (< $1 selisih) -- itu tandanya keduanya ngincer trade
+  // yang sama persis. Skip intraday-nya, daripada kamu dobel exposure di posisi yang identik.
+  const overlapsMainSignal = currentSignal
+    && currentSignal.dir === dir
+    && (currentSignal.status === 'pending' || currentSignal.status === 'active')
+    && Math.abs(currentSignal.entry - current) < 1
+    && Math.abs(currentSignal.sl - sl) < 1;
+
+  if (overlapsMainSignal){
+    statusEl.textContent = `Setup intraday ${dir === 'buy' ? 'BUY' : 'SELL'} searah & levelnya nyaris sama dengan sinyal utama yang sedang berjalan (Entry $${currentSignal.entry.toFixed(2)}) — dilewati dulu supaya tidak dobel exposure di trade yang sama.`;
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  const pipNote = `Risiko ~${Math.round(risk/PIP)} pip (maks ${Math.round(INTRADAY_MAX_RISK/PIP)} pip${momentumValid ? ', momentum kuat terdeteksi' : ''}). Sesi aktif: ${sessionLabel}${overlapSession ? ' (overlap, likuiditas tinggi)' : ''}.`;
+
+  openIntradaySignal(dir, current, sl, tp1, tp2, tpMax,
+    reason + ' ' + pipNote + ' TP1 amanin profit (otomatis dicatat WIN & cari sinyal baru begitu kesentuh) -- TP2/TP MAX cuma referensi kalau mau hold manual lebih lanjut, jangan lupa geser SL ke breakeven ($' + current.toFixed(2) + ') kalau lanjut hold. Sinyal otomatis, bukan rekomendasi personal -- selalu cek dulu ke chart sebelum eksekusi.');
+}
+
+function openIntradaySignal(dir, entry, sl, tp1, tp2, tpMax, reasonText){
+  const now = Date.now();
+  currentIntraday = {
+    dir, entry, sl, tp1, tp2, tpMax, reasonText,
+    createdAt: now,
+    entryDeadline: now + INTRADAY_ENTRY_WINDOW_MS,
+    status: 'pending',
+    triggeredAt: null
+  };
+  touchIntradayState();
+  renderIntradaySignal();
+}
+
+function renderIntradaySignal(){
+  if (!currentIntraday) return;
+  const fmt = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const { dir, entry, sl, tp1, tp2, tpMax, reasonText, status } = currentIntraday;
+
+  document.getElementById('intraday-status').style.display = 'none';
+  document.getElementById('intraday-result').style.display = 'block';
+
+  const badge = document.getElementById('intraday-badge');
+  const statusTag = status === 'active' ? ' (ACTIVE)' : ' (PENDING)';
+  badge.textContent = (dir === 'buy' ? 'BUY / LONG \u25b2' : 'SELL / SHORT \u25bc') + statusTag;
+  badge.style.background = dir === 'buy' ? 'var(--up-soft)' : 'var(--down-soft)';
+  badge.style.color = dir === 'buy' ? 'var(--up)' : 'var(--down)';
+  badge.style.border = '1px solid ' + (dir === 'buy' ? 'rgba(14,159,110,0.25)' : 'rgba(214,58,58,0.25)');
+
+  document.getElementById('i-entry').textContent = fmt(entry);
+  document.getElementById('i-sl').textContent = fmt(sl);
+  document.getElementById('i-tp1').textContent = fmt(tp1);
+  document.getElementById('i-tp2').textContent = fmt(tp2);
+  document.getElementById('i-tpmax').textContent = fmt(tpMax);
+
+  let lockNote;
+  if (status === 'active'){
+    lockNote = '<b style="color:var(--up)">Posisi ACTIVE</b> \u2014 entry sudah tersentuh, dipantau sampai kena TP1 (otomatis WIN) atau Stop Loss.';
+  } else {
+    const minutesLeft = Math.max(0, Math.round((currentIntraday.entryDeadline - Date.now()) / 60000));
+    lockNote = `<b style="color:var(--gold)">Menunggu entry \u2014 ${minutesLeft} menit lagi sebelum expired</b> \u2014 window lebih pendek karena sifatnya intraday.`;
+  }
+  document.getElementById('i-reason').innerHTML = reasonText + '<br><br>' + lockNote;
+}
+
+function processIntradayTracking(currentPrice){
+  if (!currentIntraday) return;
+  const t = currentIntraday;
+  const now = Date.now();
+
+  // CATATAN: TP1 adalah penentu WIN/LOSS otomatis di sistem ini -- begitu kesentuh, sinyal
+  // dianggap selesai (WIN), slot dibebasin, dan sistem langsung cari setup baru. TP2/TPMAX
+  // cuma referensi tambahan yang ditampilkan di panel & Log kalau kamu mau hold manual lebih
+  // jauh (dengan SL digeser ke breakeven sendiri di luar app ini).
+  if (t.status === 'pending'){
+    const touched = t.dir === 'buy' ? currentPrice <= t.entry : currentPrice >= t.entry;
+    if (touched){
+      t.status = 'active';
+      t.triggeredAt = now;
+      // Sama seperti fix di processTracking() sinyal utama: cek TP1/SL sekaligus kalau harga
+      // gap langsung lewat entry + TP1/SL dalam tick yang sama.
+      const hitTP1Now = t.dir === 'buy' ? currentPrice >= t.tp1 : currentPrice <= t.tp1;
+      const hitSLNow = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
+      if (hitTP1Now || hitSLNow){
+        appendLog({ result: hitTP1Now ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, triggeredAt: now, type: 'intraday', note: 'Entry & TP1/SL tersentuh dalam pergerakan harga yang sama (gap)' });
+        currentIntraday = null;
+        touchIntradayState();
+        renderLogTab();
+        updateIntradaySignal();
+        return;
+      }
+      touchIntradayState();
+      renderIntradaySignal();
+    } else if (now > t.entryDeadline){
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, note: 'Entry intraday tidak tersentuh dalam 30 menit', type: 'intraday' });
+      currentIntraday = null;
+      touchIntradayState();
+      renderLogTab();
+      updateIntradaySignal();
+    }
+  } else if (t.status === 'active'){
+    const hitTP1 = t.dir === 'buy' ? currentPrice >= t.tp1 : currentPrice <= t.tp1;
+    const hitSL = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
+    if (hitTP1 || hitSL){
+      appendLog({ result: hitTP1 ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, triggeredAt: t.triggeredAt, type: 'intraday' });
+      currentIntraday = null;
+      touchIntradayState();
+      renderLogTab();
+      updateIntradaySignal();
+    } else if (now - t.createdAt > INTRADAY_SAFETY_TIMEOUT_MS){
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, note: 'Timeout keamanan 12 jam, belum resolve TP1/SL', type: 'intraday' });
+      currentIntraday = null;
+      touchIntradayState();
+      renderLogTab();
+      updateIntradaySignal();
+    }
+  }
+}
+
+// ===== Automatic outcome tracking (Entry -> TP/SL/Expired) =====
+const LOG_KEY = 'goldSignalLog';
+
+// One-time reset: log lama (banyak SL/TP kejepit noise) dihapus sekali saat file baru ini
+// pertama kali dimuat di tiap device. Sinyal yang sedang berjalan (currentSignal) TIDAK ikut
+// direset -- tetap lanjut seperti biasa.
+const LOG_RESET_FLAG = 'goldSignalLogResetV2';
+if (!localStorage.getItem(LOG_RESET_FLAG)){
+  try{
+    localStorage.removeItem(LOG_KEY);
+    localStorage.setItem(LOG_RESET_FLAG, '1');
+  }catch(e){}
+}
+
+function loadLog(){
+  try{
+    const raw = localStorage.getItem(LOG_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function appendLog(entry){
+  // id unik per entry supaya merge antar device (web/app) tidak dobel-catat kejadian yang sama
+  if (!entry.id) entry.id = `${entry.at}_${entry.dir}_${entry.result}${entry.type === 'intraday' ? '_i' : ''}`;
+  const log = loadLog();
+  if (log.some(e => e.id === entry.id)) return; // sudah tercatat (mis. dari sync device lain)
+  log.unshift(entry); // newest first
+  try{ localStorage.setItem(LOG_KEY, JSON.stringify(log.slice(0, 200))); }catch(e){}
+  pushLogToRemote();
+}
+
+// Gabungkan log remote ke log lokal tanpa dobel, berdasarkan id unik masing-masing entry.
+function mergeRemoteLog(remoteLog){
+  if (!Array.isArray(remoteLog) || !remoteLog.length) return;
+  const local = loadLog();
+  const map = new Map();
+  local.forEach(e => map.set(e.id || `${e.at}_${e.dir}_${e.result}`, e));
+  remoteLog.forEach(e => map.set(e.id || `${e.at}_${e.dir}_${e.result}`, e));
+  const merged = Array.from(map.values()).sort((a, b) => b.at - a.at).slice(0, 200);
+  try{ localStorage.setItem(LOG_KEY, JSON.stringify(merged)); }catch(e){}
+}
+async function syncLogFromRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    const res = await fetch(FIREBASE_URL + '/signalLog.json');
+    const remote = await res.json();
+    mergeRemoteLog(remote);
+  }catch(e){}
+}
+async function pushLogToRemote(){
+  if (!SYNC_ENABLED) return;
+  try{
+    await fetch(FIREBASE_URL + '/signalLog.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(loadLog())
+    });
+  }catch(e){}
+}
+
+// Called every price tick to advance the PENDING -> ACTIVE -> WIN/LOSS/EXPIRED state machine.
+// Begitu sinyal resolve (kena TP/SL, atau timeout entry), currentSignal langsung dikosongkan
+// dan updateSignal() dipanggil ulang saat itu juga supaya analisa baru langsung muncul —
+// tidak menunggu jam berikutnya.
+function processTracking(currentPrice){
+  if (!currentSignal) return;
+
+  const t = currentSignal;
+  const now = Date.now();
+
+  if (t.status === 'pending'){
+    const touched = t.dir === 'buy' ? currentPrice <= t.entry : currentPrice >= t.entry;
+    if (touched){
+      t.status = 'active';
+      t.triggeredAt = now;
+      // FIX: kalau harga gap/loncat sampai tersentuh entry SEKALIGUS sudah lewat TP/SL dalam tick
+      // yang sama (mis. karena polling sempat delay/app di-background), langsung cek & resolve di
+      // sini juga -- jangan tunggu tick berikutnya, supaya tidak ada sinyal "nyangkut" yang log-nya
+      // tidak pernah tersimpan.
+      const hitTPNow = t.dir === 'buy' ? currentPrice >= t.tp : currentPrice <= t.tp;
+      const hitSLNow = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
+      if (hitTPNow || hitSLNow){
+        appendLog({ result: hitTPNow ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp, at: now, triggeredAt: now, note: 'Entry & TP/SL tersentuh dalam pergerakan harga yang sama (gap)' });
+        currentSignal = null;
+        touchSignalState();
+        renderLogTab();
+        updateSignal();
+        return;
+      }
+      touchSignalState();
+      renderCurrentSignal();
+    } else if (now > t.entryDeadline){
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp, at: now, note: 'Entry tidak tersentuh dalam 1 jam — momentum dianggap hilang' });
+      currentSignal = null;
+      touchSignalState();
+      renderLogTab();
+      updateSignal(); // langsung analisa ulang untuk sinyal baru
+    }
+  } else if (t.status === 'active'){
+    const hitTP = t.dir === 'buy' ? currentPrice >= t.tp : currentPrice <= t.tp;
+    const hitSL = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
+    if (hitTP || hitSL){
+      appendLog({ result: hitTP ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp, at: now, triggeredAt: t.triggeredAt });
+      currentSignal = null;
+      touchSignalState();
+      renderLogTab();
+      updateSignal(); // langsung analisa ulang untuk sinyal baru
+    } else if (now - t.createdAt > SAFETY_TIMEOUT_MS){
+      // Jaring pengaman: sangat jarang kepakai (48 jam), hanya kalau harga macet total tanpa pernah kena TP/SL
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp, at: now, note: 'Timeout keamanan 48 jam, belum resolve TP/SL' });
+      currentSignal = null;
+      touchSignalState();
+      renderLogTab();
+      updateSignal();
+    }
+  }
+}
+
+let currentLogFilter = 'all';
+function renderLogTab(){
+  const log = loadLog();
+  const totalEl = document.getElementById('stat-total');
+  const winrateEl = document.getElementById('stat-winrate');
+  const wlEl = document.getElementById('stat-wl');
+  const listEl = document.getElementById('log-list');
+  const currentEl = document.getElementById('log-current');
+  if (!totalEl || !listEl) return;
+
+  // Show the currently in-progress signal (pending or active)
+  if (currentEl){
+    if (currentSignal){
+      const t = currentSignal;
+      const dirLabel = t.dir === 'buy' ? 'BUY' : 'SELL';
+      const fmt = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (t.status !== 'active'){
+        currentEl.innerHTML = `<div style="background:var(--gold-soft); border:1px solid var(--border-strong); border-radius:10px; padding:14px 16px; font-size:13px; color:var(--text-2);">
+          <b>⏳ PENDING</b> — Sinyal ${dirLabel} nunggu harga nyentuh entry ${fmt(t.entry)} dulu. SL ${fmt(t.sl)} · TP ${fmt(t.tp)}.
+        </div>`;
+      } else {
+        currentEl.innerHTML = `<div style="background:var(--up-soft); border:1px solid rgba(14,159,110,0.25); border-radius:10px; padding:14px 16px; font-size:13px; color:var(--text-2);">
+          <b>🔵 ACTIVE</b> — Entry ${dirLabel} ${fmt(t.entry)} sudah ke-trigger, sedang dipantau ke arah TP ${fmt(t.tp)} atau SL ${fmt(t.sl)}.
+        </div>`;
+      }
+    } else {
+      currentEl.innerHTML = `<div style="color:var(--muted); font-size:13px; padding:8px 0;">Tidak ada sinyal yang sedang dipantau saat ini.</div>`;
+    }
+  }
+
+  // Show the currently in-progress INTRADAY signal (pending or active) -- terpisah dari sinyal utama
+  const currentIntradayEl = document.getElementById('log-current-intraday');
+  if (currentIntradayEl){
+    if (currentIntraday){
+      const t = currentIntraday;
+      const dirLabel = t.dir === 'buy' ? 'BUY' : 'SELL';
+      const fmt = n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      if (t.status !== 'active'){
+        currentIntradayEl.innerHTML = `<div style="background:var(--gold-soft); border:1px solid var(--border-strong); border-radius:10px; padding:14px 16px; font-size:13px; color:var(--text-2);">
+          <b>⚡ ⏳ PENDING (Intraday)</b> — Sinyal ${dirLabel} nunggu harga nyentuh entry ${fmt(t.entry)} dulu. SL ${fmt(t.sl)} · TP1 ${fmt(t.tp1)}.
+        </div>`;
+      } else {
+        currentIntradayEl.innerHTML = `<div style="background:var(--up-soft); border:1px solid rgba(14,159,110,0.25); border-radius:10px; padding:14px 16px; font-size:13px; color:var(--text-2);">
+          <b>⚡ 🔵 ACTIVE (Intraday)</b> — Entry ${dirLabel} ${fmt(t.entry)} sudah ke-trigger, sedang dipantau ke arah TP1 ${fmt(t.tp1)} atau SL ${fmt(t.sl)}.
+        </div>`;
+      }
+    } else {
+      currentIntradayEl.innerHTML = '';
+    }
+  }
+
+  const filteredLog = currentLogFilter === 'all'
+    ? log
+    : log.filter(e => currentLogFilter === 'auto' ? !e.type : e.type === currentLogFilter);
+
+  const resolved = filteredLog.filter(e => e.result === 'win' || e.result === 'loss');
+  const wins = filteredLog.filter(e => e.result === 'win').length;
+  const losses = filteredLog.filter(e => e.result === 'loss').length;
+  const expired = filteredLog.filter(e => e.result === 'expired').length;
+
+  totalEl.textContent = filteredLog.length;
+  winrateEl.textContent = resolved.length ? Math.round((wins / resolved.length) * 100) + '%' : '–';
+  wlEl.textContent = `${wins} / ${losses} / ${expired}`;
+
+  if (!filteredLog.length){
+    listEl.innerHTML = '<div style="color:var(--muted); font-size:13px; text-align:center; padding:20px;">Belum ada riwayat sinyal untuk kategori ini. Log akan mulai terisi begitu sinyal pertama selesai (kena TP/SL, atau expired).</div>';
+    return;
+  }
+
+  listEl.innerHTML = filteredLog.slice(0, 50).map(e => {
+    const icon = e.result === 'win' ? '✅' : e.result === 'loss' ? '❌' : '⚪';
+    const label = e.result === 'win' ? 'WIN' : e.result === 'loss' ? 'LOSS' : 'EXPIRED';
+    const color = e.result === 'win' ? 'var(--up)' : e.result === 'loss' ? 'var(--down)' : 'var(--muted)';
+    const dirLabel = e.dir === 'buy' ? 'BUY' : 'SELL';
+    const dateStr = new Date(e.at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const detail = e.result === 'expired'
+      ? (e.note || 'Expired')
+      : `Entry $${e.entry.toFixed(2)} → ${e.result === 'win' ? 'TP1 $' + e.tp.toFixed(2) : 'SL $' + e.sl.toFixed(2)}`;
+    const extraTargets = (e.result === 'win' && e.type === 'intraday' && e.tp2 && e.tpMax)
+      ? ` <span style="color:var(--muted);">(ref lanjut: TP2 $${e.tp2.toFixed(2)} · TP MAX $${e.tpMax.toFixed(2)})</span>`
+      : '';
+    const typeTag = e.type === 'intraday'
+      ? '<span style="background:var(--gold-soft); color:var(--gold); font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; margin-left:8px; letter-spacing:0.3px; white-space:nowrap;">⚡ INTRADAY</span>'
+      : (e.type === 'daily' ? '<span style="background:var(--gold-soft); color:var(--gold); font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; margin-left:8px; letter-spacing:0.3px; white-space:nowrap;">📅 DAILY</span>' : '');
+    return `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:12.5px;">
+      <div><b style="color:${color}">${icon} ${label}</b> <span style="color:var(--muted)">— ${dirLabel} · ${detail}</span>${extraTargets}${typeTag}</div>
+      <div style="color:var(--muted); font-size:11px; white-space:nowrap; margin-left:10px;">${dateStr}</div>
+    </div>`;
+  }).join('');
+}
+
+document.querySelectorAll('.log-filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentLogFilter = btn.dataset.filter;
+    document.querySelectorAll('.log-filter-btn').forEach(b => {
+      const isActive = b === btn;
+      b.classList.toggle('active', isActive);
+      b.style.background = isActive ? 'var(--gold)' : 'var(--panel-2)';
+      b.style.color = isActive ? '#fff' : 'var(--muted)';
+      b.style.borderColor = isActive ? 'var(--gold)' : 'var(--border)';
+    });
+    renderLogTab();
+  });
+});
+
+pollPrice();
+try{ renderLogTab(); }catch(e){ console.error('renderLogTab failed on init:', e); }
+setInterval(pollPrice, POLL_MS);
+
+// Mobile browsers pause JS timers while the tab/app is backgrounded or the screen is locked.
+// Force an immediate sync the moment the app comes back to the foreground, instead of
+// waiting for the next scheduled 30s tick (which may be very stale after a long background period).
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden){
+    pollPrice();
+    if (typeof fetchDailySignal === 'function') fetchDailySignal();
+  }
+});
+
+// Lazy-load calendar & news only (chart & technical analysis are static, loaded immediately via inline script)
+const widgetConfigs = {
+  timeline: {
+    src: 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js',
+    config: { feedMode: 'symbol', symbol: 'OANDA:XAUUSD', colorTheme: 'light', isTransparent: true, displayMode: 'regular', width: '100%', height: '100%', locale: 'id' }
+  },
+  events: {
+    src: 'https://s3.tradingview.com/external-embedding/embed-widget-events.js',
+    config: { colorTheme: 'light', isTransparent: true, width: '100%', height: '100%', locale: 'id', importanceFilter: '-1,0,1', countryFilter: 'us,eu,cn,jp,gb' }
+  }
+};
+
+function loadLazyWidget(container){
+  if (!container) return;
+  const type = container.dataset.widget;
+  const cfg = widgetConfigs[type];
+  if (!cfg || container.dataset.loaded) return;
+  container.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'tradingview-widget-container';
+  wrap.style.cssText = 'height:100%;width:100%';
+  const inner = document.createElement('div');
+  inner.className = 'tradingview-widget-container__widget';
+  inner.style.cssText = 'height:100%;width:100%';
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = cfg.src;
+  script.async = true;
+  script.text = JSON.stringify(cfg.config);
+  wrap.appendChild(inner);
+  wrap.appendChild(script);
+  container.appendChild(wrap);
+  container.dataset.loaded = '1';
+}
+
+function switchTab(tabId){
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.toggle('active', el.dataset.tab === tabId));
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', el.dataset.tabContent === tabId));
+  document.querySelectorAll(`.tab-content[data-tab-content="${tabId}"] .lazy-widget`).forEach(loadLazyWidget);
+  if (tabId === 'log') renderLogTab();
+}
+
+// Preload calendar & news quietly in the background after page settles,
+// so the Fundamental tab feels instant when clicked
+setTimeout(() => {
+  document.querySelectorAll('.lazy-widget').forEach((el, i) => {
+    setTimeout(() => loadLazyWidget(el), i * 800);
+  });
+}, 1500);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  });
+}
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79"}' crossorigin="anonymous"></script>
+</body>
+</html>

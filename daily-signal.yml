@@ -1,0 +1,24 @@
+name: Update Sinyal Daily
+
+on:
+  schedule:
+    # tiap 15 menit, 24/7 (waktu di cron pakai UTC)
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {} # biar bisa di-trigger manual dari tab Actions buat testing
+
+jobs:
+  update-daily-signal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Jalankan script sinyal daily
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+        run: node scripts/daily-signal.js

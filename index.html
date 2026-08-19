@@ -1097,8 +1097,9 @@ let intradayUpdatedAt = 0;
 // ===================================================================================
 const ZONE_MIN_RANGE = 8;              // $ (~80 pip) -- dinaikkan dari 3 supaya zona Buy/Sell & TP1/2/Max punya jarak yang berarti, tidak berdempetan
 const ZONE_GOLDEN_WIDTH_PCT = 0.10;    // lebar pocket = 10% dari range S-R (lebih sempit dari pita referensi yang statis)
-const ZONE_BAND_PCT = 0.09;            // lebar pita referensi Buy/Sell (dikecilkan dari 12% -> 9%) supaya kedua zona tidak terlalu berdekatan
-const ZONE_MIN_GAP_PIP = 20;           // jarak minimum antara tepi Zona Buy & tepi Zona Sell -- kalau kepepet, lebar pita dipangkas demi jaga jarak ini
+const ZONE_BAND_PCT = 0.15;            // lebar pita referensi Buy/Sell (v3: dinaikkan 9% -> 15% -- 9% kerasa "tipis" utk limit order beneran, entry gampang ketinggalan)
+const ZONE_MIN_WIDTH_PIP = 15;         // (BARU v3) lebar zona ABSOLUT minimal 15 pip, terlepas dari persen range -- supaya di range kecil pun zona tidak jadi setipis kertas
+const ZONE_MIN_GAP_PIP = 25;           // jarak minimum antara tepi Zona Buy & tepi Zona Sell -- dinaikkan 20 -> 25 supaya tetap ada jarak sehat meski kedua zona sekarang lebih lebar
 const ZONE_SL_BUFFER_PCT = 0.04;       // jarak SL dari S/R = 4% dari range (biar nggak pas di garis, rawan wick)
 const ZONE_MIN_RISK = 10 * PIP;        // floor 10 pip untuk SL Zona (baik pita referensi maupun Golden Zone)
 const ZONE_MAX_RISK = 30 * PIP;        // cap 30 pip -- SL Zona TIDAK PERNAH lebih dari ini, sama seperti Intraday
@@ -1427,12 +1428,14 @@ function renderZoneSignal(prices){
     return;
   }
 
-  // Lebar pita zona -- DIPANGKAS otomatis kalau perlu supaya jarak antara tepi Zona Buy (buyHigh)
-  // dan tepi Zona Sell (sellLow) tidak pernah lebih sempit dari ZONE_MIN_GAP_PIP. Ini yang mencegah
-  // dua zona kerasa "berdempetan" terutama saat range S-R belum terlalu lebar.
+  // Lebar pita zona (v3): dimulai dari MAX(persen range, floor absolut pip) supaya zona tidak
+  // pernah kerasa "tipis" di range kecil -- lalu baru DIPANGKAS otomatis kalau perlu supaya jarak
+  // antara tepi Zona Buy (buyHigh) dan tepi Zona Sell (sellLow) tidak pernah lebih sempit dari
+  // ZONE_MIN_GAP_PIP. Ini yang mencegah dua zona kerasa "berdempetan" ATAU "setipis kertas".
   const minGapDollar = ZONE_MIN_GAP_PIP * PIP;
   const maxZoneWidthForGap = Math.max(0, (range - minGapDollar) / 2);
-  const zoneWidth = Math.min(range * ZONE_BAND_PCT, maxZoneWidthForGap);
+  const desiredZoneWidth = Math.max(range * ZONE_BAND_PCT, ZONE_MIN_WIDTH_PIP * PIP);
+  const zoneWidth = Math.min(desiredZoneWidth, maxZoneWidthForGap);
 
   const buyLow = S, buyHigh = S + zoneWidth;
   const sellLow = R - zoneWidth, sellHigh = R;

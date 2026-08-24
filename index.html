@@ -487,7 +487,7 @@
     </div>
 
     <div class="panel">
-      <div class="panel-label"><b>SINYAL ZONA</b> — area Buy/Sell dari Support-Resistance yang kepantau (bukan titik entry presisi, tidak auto-trigger/auto-close, tidak masuk statistik Win/Loss) — cocok kalau Sinyal Otomatis di atas kerasa terlalu cepat & kebanyakan loss, jadi kamu yang putuskan kapan eksekusi. Golden Zone (bagian trackable) sudah dapat treatment MACD (bonus: deteksi momentum berlawanan melemah), RSI Divergence (bonus), dan Efficiency Ratio (konteks risiko BoS) — logikanya dibalik dari Sinyal Otomatis/Intraday karena ini setup mean-reversion, bukan trend-following, plus Confidence Score</div>
+      <div class="panel-label"><b>SINYAL ZONA</b> — area Buy/Sell dari Support-Resistance yang kepantau (bukan titik entry presisi, tidak auto-trigger/auto-close, tidak masuk statistik Win/Loss) — cocok kalau Sinyal Otomatis di atas kerasa terlalu cepat & kebanyakan loss, jadi kamu yang putuskan kapan eksekusi. Golden Zone (bagian trackable) sudah dapat treatment MACD (bonus: deteksi momentum berlawanan melemah), RSI Divergence (bonus, bobot lebih tinggi), Candle Pattern (bonus, bobot lebih tinggi), dan Efficiency Ratio — jadi konteks risiko BoS di kondisi trend sedang, dan jadi gate penahan sinyal kalau trend SANGAT kuat tanpa confluence tambahan sama sekali — logikanya dibalik dari Sinyal Otomatis/Intraday karena ini setup mean-reversion, bukan trend-following, plus Confidence Score berbobot</div>
       <div style="padding:20px;">
         <div id="zonesig-status" style="font-size:13px; color:var(--muted); margin-bottom:14px;">Mengumpulkan data live untuk menentukan zona...</div>
         <div id="zonesig-result" style="display:none;">
@@ -1413,7 +1413,12 @@ const ZONE_TP1_MIN_RR = 1.5;           // (BARU) TP1 fib doang bisa jadi tipis b
                                         // SL sama sekali tidak berubah, ini cuma narik TP1 lebih jauh kalau ternyata dia lebih deket dari 1.5R.
 const ZONE_RSI_BUY_MAX = 35;           // RSI harus <= ini buat konfirmasi golden BUY (oversold)
 const ZONE_RSI_SELL_MIN = 65;          // RSI harus >= ini buat konfirmasi golden SELL (overbought)
-const ZONE_ER_TREND_WARN = 0.55;       // Efficiency Ratio di atas ini = market lagi trending kuat -- bukan gate (mean-reversion tetap boleh jalan), tapi dikasih catatan risiko BoS lebih tinggi
+const ZONE_ER_TREND_WARN = 0.55;       // Efficiency Ratio di atas ini = market lagi trending kuat -- dikasih catatan risiko BoS lebih tinggi
+const ZONE_ER_HARD_FILTER = 0.75;      // (BARU) ER di atas ini = trend SANGAT bersih/kuat -- di titik ini setup mean-reversion tanpa
+                                        // konfirmasi apapun (bonus MACD/divergence/candle = 0) risikonya kegedean vs mengandalkan
+                                        // harga+RSI doang. BEDA dari ZONE_ER_TREND_WARN: ini baru jadi GATE (tahan sinyal) kalau
+                                        // bonusCount masih 0 saat itu -- begitu ada 1 aja confluence tambahan, gate ini tidak berlaku,
+                                        // karena tujuannya cuma nyaring kasus "harga+RSI doang, lawan trend ekstrem, tanpa second opinion".
 const ZONE_STATE_KEY = 'goldZoneState';
 const ZONE_SAFETY_TIMEOUT_MS = 24 * 60 * 60 * 1000; // jaring pengaman 24 jam -- zona sifatnya lebih lambat dari intraday
 // FIX (spam-loss bug, lapis kedua): setelah Zone resolve (WIN/LOSS/expired), kasih jeda singkat
@@ -2242,7 +2247,12 @@ function loadZoneState(){
     const raw = localStorage.getItem(ZONE_STATE_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
-    currentZone = parsed.signal !== undefined ? parsed.signal : parsed;
+    const sig = parsed.signal !== undefined ? parsed.signal : parsed;
+    // FIX (bug "—" & teks "undefined" macet permanen di Golden Zone Trigger): sama seperti
+    // loadIntradayState()/loadState(), state lokal yang korup/setengah (entry/sl/tp1/tp2/tpMax
+    // bukan angka valid, atau reasonText hilang) dibuang -- jangan sampai ke-render apa adanya
+    // dan nyangkut selamanya karena updateGoldenZoneTrigger() skip re-analisa selama currentZone truthy.
+    currentZone = (isValidTradeShape(sig, ['entry','sl','tp1','tp2','tpMax']) && typeof sig.reasonText === 'string') ? sig : null;
     zoneUpdatedAt = parsed.updatedAt || 0;
   }catch(e){}
 }
@@ -2260,7 +2270,9 @@ async function syncZoneFromRemote(){
     const res = await fetch(FIREBASE_URL + '/zoneState.json');
     const remote = await res.json();
     if (remote && typeof remote.updatedAt === 'number' && remote.updatedAt > zoneUpdatedAt){
-      currentZone = remote.signal;
+      // Guard sama seperti loadZoneState() -- remote yang korup/setengah dibuang, jangan sampai
+      // device lain ikutan ketularan macet nampilin "—"/"undefined".
+      currentZone = (isValidTradeShape(remote.signal, ['entry','sl','tp1','tp2','tpMax']) && typeof remote.signal.reasonText === 'string') ? remote.signal : null;
       zoneUpdatedAt = remote.updatedAt;
       saveZoneState();
     }
@@ -2354,7 +2366,15 @@ async function updateGoldenZoneTrigger(prices){
   // Makanya MACD & divergence tetap jadi BONUS confluence (bukan wajib, sama seperti engine lain),
   // tapi ER di sini jadi CATATAN RISIKO kalau ternyata trending kuat -- bukan gate penolak, karena
   // menolak justru kontra sama tujuan panel ini (harga & RSI udah di titik ekstrem, itu makna zona).
+  // (BARU) Bonus dibobot, bukan disamaratakan +1 -- candle reversal & RSI divergence secara teknikal
+  // konfirmasi "exhaustion" yang lebih kuat/langsung daripada MACD histogram yang sekadar melambat
+  // (melambat != berbalik). bonusCount tetap dipakai sebagai penentu gate ER di atas (butuh minimal
+  // 1 confluence apapun jenisnya), tapi confidenceScore sekarang pakai bonusWeight biar skor "believable"
+  // 3/5 vs 3/5 tidak menyamakan kombinasi yang beda kekuatan. NOTE: bobot ini estimasi teknikal awal,
+  // bukan hasil kalibrasi statistik -- sebaiknya di-tune ulang setelah data Log cukup banyak (lihat
+  // catatan analisa win-rate per kombinasi bonus).
   let bonusCount = 0;
+  let bonusWeight = 0;
   let extraNotes = '';
 
   const macdNow = computeMACD(prices);
@@ -2363,6 +2383,7 @@ async function updateGoldenZoneTrigger(prices){
     const decelerating = dir === 'buy' ? (macdNow.hist > macdPrev.hist) : (macdNow.hist < macdPrev.hist);
     if (decelerating){
       bonusCount++;
+      bonusWeight += 1;
       extraNotes += `<br>📉 Bonus: momentum MACD yang berlawanan mulai melemah (histogram ${macdPrev.hist.toFixed(3)} → ${macdNow.hist.toFixed(3)}) -- indikasi tren sebelumnya kehabisan tenaga, konsisten dengan logika "exhaustion" yang dicari di golden zone.`;
     }
   }
@@ -2371,6 +2392,7 @@ async function updateGoldenZoneTrigger(prices){
   const divergence = detectRSIDivergence(prices, swingsForDivergence.highs, swingsForDivergence.lows, dir);
   if (divergence){
     bonusCount++;
+    bonusWeight += 1.5;
     extraNotes += `<br>📐 Bonus: ${divergence.label}.`;
   }
 
@@ -2393,6 +2415,7 @@ async function updateGoldenZoneTrigger(prices){
         const candlePattern = detectCandlePattern(candles5m, dir);
         if (candlePattern){
           bonusCount++;
+          bonusWeight += 1.5;
           extraNotes += `<br>🕯️ Bonus: ${candlePattern.label} -- konfirmasi bentuk candle asli tepat di area pantulan, cocok dengan logika reversal golden zone.`;
         }
         const adx = computeADX(candles5m, 14);
@@ -2403,7 +2426,21 @@ async function updateGoldenZoneTrigger(prices){
     }catch(e){ /* fetch gagal/timeout -- dilewati, tidak menahan sinyal */ }
   }
 
-  const confidenceScore = 2 + bonusCount; // 2 wajib (harga di pocket + RSI ekstrem searah) + bonus MACD deceleration, divergence, & candlestick pattern
+  // ----- Gate (BARU): trend ekstrem + nol confluence tambahan = tahan sinyal -----
+  // Beda dari catatan ER biasa di atas (yang cuma warning teks): ini satu-satunya kondisi di
+  // Golden Zone Trigger yang bisa MENOLAK setup meski harga+RSI sudah confirm. Alasannya spesifik:
+  // di ER >= 0.75 (trend SANGAT bersih), taruhan "harga bakal mantul di S/R" lawan momentum yang
+  // sedemikian kuat itu spekulatif kalau tidak ada satupun second opinion (MACD melambat / divergence
+  // / candle reversal) yang mendukung. Begitu ada minimal 1 confluence, gate ini tidak berlaku --
+  // filternya cuma nyaring kasus "harga+RSI doang, full melawan trend ekstrem, tanpa bukti tambahan".
+  if (er !== null && er >= ZONE_ER_HARD_FILTER && bonusCount === 0){
+    statusEl.textContent = `Golden Moment terdeteksi (harga di pocket + RSI ekstrem) tapi ditahan -- Efficiency Ratio ${er.toFixed(2)} nunjukin trend saat ini sangat kuat/bersih dan tidak ada satupun confluence tambahan (MACD/divergence/candle) yang mendukung skenario pantulan. Menunggu konfirmasi tambahan atau kondisi trend mereda.`;
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  const confidenceScore = 2 + bonusWeight; // 2 wajib (harga di pocket + RSI ekstrem searah) + bonus berbobot (lihat catatan bonusWeight di atas)
 
   const slBuffer = range * ZONE_SL_BUFFER_PCT;
   const rawRisk = dir === 'buy' ? (current - (S - slBuffer)) : ((R + slBuffer) - current);
@@ -2427,7 +2464,7 @@ async function updateGoldenZoneTrigger(prices){
   tp1 = dir === 'buy' ? Math.min(tp1, tp2) : Math.max(tp1, tp2);
   const tp1UsedFloor = tp1 !== tp1Fib;
 
-  const reasonText = `<b>Confidence Score ${confidenceScore}/5${bonusCount > 0 ? ` (2 wajib + ${bonusCount} bonus)` : ' (2 wajib, tanpa bonus)'}:</b><br>` +
+  const reasonText = `<b>Confidence Score ${confidenceScore.toFixed(1)}/5.5${bonusCount > 0 ? ` (2 wajib + ${bonusCount} bonus, dibobot)` : ' (2 wajib, tanpa bonus)'}:</b><br>` +
     confirmText +
     ' Golden Zone = pocket sempit (10% dari lebar range S-R) di ujung area, cuma trigger kalau harga BENERAN di situ + RSI ekstrem -- beda dari pita referensi lebar di atas yang selalu tampil sebagai info, ini baru muncul saat momennya beneran ada.' +
     ` SL ditaruh sedikit di luar Support/Resistance, di-clamp ke rentang minimal 18 pip s/d ${Math.round(effectiveZoneMaxRisk/PIP)} pip${effectiveZoneMaxRisk > ZONE_MAX_RISK ? ' (dilebarin dari cap normal 30 pip karena volatilitas market saat ini lagi tinggi)' : ' (cap normal, market lagi kalem)'} (~${Math.round(finalRisk/PIP)} pip di sinyal ini) biar nggak gampang kena wick tipis. TP1 amanin profit (otomatis dicatat WIN begitu kesentuh) -- TP2/TP MAX referensi kalau mau hold manual lanjut.` +

@@ -651,7 +651,8 @@
           <button class="log-filter-btn" data-filter="zone" style="flex-shrink:0; background:var(--panel-2); color:var(--muted); border:1px solid var(--border); padding:7px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;">🎯 Zona</button>
           <button class="log-filter-btn" data-filter="daily" style="flex-shrink:0; background:var(--panel-2); color:var(--muted); border:1px solid var(--border); padding:7px 14px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;">📅 Daily</button>
         </div>
-        <div id="stat-breakdown" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px;"></div>
+        <div id="stat-breakdown" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:10px;"></div>
+        <div id="stat-bias-breakdown" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px;"></div>
         <div id="log-stats" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:14px;">
           <div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center;">
             <div style="font-size:11px; color:var(--muted); letter-spacing:1px; margin-bottom:4px;">TOTAL SINYAL</div>
@@ -1161,6 +1162,45 @@ function saveTwelveDataKeyFromInput(){
 const TD_INTERVAL_MAP = { m15: '15min', m30: '30min', h1: '1h', h4: '4h' };
 const candleCache = {}; // keyed by interval string, e.g. '15min' -> { candles:[{t,o,h,l,c}], fetchedAt }
 const CANDLE_CACHE_MS = { '5min': 3*60*1000, '15min': 5*60*1000, '30min': 10*60*1000, '1h': 15*60*1000, '4h': 45*60*1000 };
+
+// ===== (BARU) Konteks DXY -- INFO ONLY, BUKAN GATE =====
+// Gold & DXY (US Dollar Index) secara historis kebanyakan inverse correlation. Ini CUMA nambah
+// 1 baris info di reasoning Sinyal Otomatis (misal "USD lagi menguat, biasanya tekanan turun buat
+// gold") -- TIDAK menahan/mem-block sinyal apapun, sama prinsipnya kayak tracking Daily Bias.
+// PENTING kenapa ini CUMA dipasang di Sinyal Otomatis (manual klik), TIDAK di Intraday/Zona (yang
+// auto-cek tiap 30 detik): kalau dipasang di yang auto-polling, request API ke Twelve Data bakal
+// nambah drastis (tiap 30 detik x 2 engine = ribuan request/hari) dan gampang ngabisin kuota
+// gratis 800 request/hari punya kamu -- termasuk buat candle XAU/USD yang udah jalan duluan.
+// CATATAN JUJUR: saya belum bisa pastikan simbol "DXY" ini kebuka di tier gratis Twelve Data kamu
+// (nggak ada akses jaringan buat tes langsung dari sandbox saya) -- kalau ternyata gagal/gak
+// didukung, fungsi ini SENGAJA didesain gagal dengan tenang (return null), reasoning cuma nggak
+// nampilin baris DXY-nya, TIDAK bikin Sinyal Otomatis error/berhenti berfungsi.
+let dxyCache = null; // { direction: 'menguat'|'melemah'|'sideways', changePct, fetchedAt }
+const DXY_CACHE_MS = 10 * 60 * 1000; // 10 menit -- DXY nggak perlu se-real-time candle gold, biar hemat kuota
+async function fetchDXYContext(){
+  const key = getTwelveDataKey();
+  if (!key) return null;
+  if (dxyCache && (Date.now() - dxyCache.fetchedAt) < DXY_CACHE_MS) return dxyCache;
+  try{
+    const url = `${TWELVEDATA_BASE}?symbol=DXY&interval=1h&outputsize=20&order=ASC&apikey=${encodeURIComponent(key)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.status === 'error' || !Array.isArray(data.values) || data.values.length < 5){
+      console.warn('[DXY] simbol/data tidak tersedia di tier ini:', data && data.message ? data.message : data);
+      return null; // gagal dengan tenang -- reasoning Sinyal Otomatis cuma skip baris DXY-nya
+    }
+    const closes = data.values.map(v => parseFloat(v.close)).filter(isFinite);
+    if (closes.length < 5) return null;
+    const first = closes[0], last = closes[closes.length - 1];
+    const changePct = ((last - first) / first) * 100;
+    const direction = changePct > 0.1 ? 'menguat' : changePct < -0.1 ? 'melemah' : 'sideways';
+    dxyCache = { direction, changePct, fetchedAt: Date.now() };
+    return dxyCache;
+  }catch(e){
+    console.warn('[DXY] fetch gagal:', e);
+    return null;
+  }
+}
 
 // Fetch candle OHLC mentah untuk 1 interval Twelve Data, dengan cache supaya tidak boros kuota
 // free tier. Return null kalau API key kosong atau fetch gagal total (caller WAJIB fallback).
@@ -1881,8 +1921,13 @@ async function runManualAnalysis(){
   // API key belum diisi / fetch gagal / data belum cukup. Status sumber data didisclose ke user
   // baik lewat status "Menganalisa..." sesaat maupun di reason sinyal kalau berhasil terbuka. -----
   const outputsize = Math.max(tfConf.ticks, 80);
-  let candles = null;
-  try{ candles = await fetchCandlesForTF(tfConf.key, outputsize); }catch(e){ candles = null; }
+  let candles = null, dxyContext = null;
+  try{
+    [candles, dxyContext] = await Promise.all([
+      fetchCandlesForTF(tfConf.key, outputsize).catch(() => null),
+      fetchDXYContext().catch(() => null)
+    ]);
+  }catch(e){ candles = null; dxyContext = null; }
 
   const minNeeded = Math.max(35, tfConf.lookback * 2 + 5);
   const usingRealCandles = !!(candles && candles.length >= minNeeded);
@@ -2021,6 +2066,14 @@ async function runManualAnalysis(){
 
   // ----- Gate 9: Bias Daily/Hold -- DINONAKTIFKAN, tidak lagi jadi penghalang (info only) -----
   reason += `<br>5) Bias Daily/Hold: ${dailyTrendDir ? (dailyTrendDir === dir ? 'searah, mendukung' : 'berlawanan, tapi gate ini dinonaktifkan jadi tidak menahan sinyal') : 'tidak ada setup daily aktif saat ini'}.`;
+  // (BARU) Konteks DXY -- INFO ONLY, bukan gate (lihat catatan panjang di fetchDXYContext()).
+  if (dxyContext){
+    const dxyImpliesGoldDir = dxyContext.direction === 'menguat' ? 'sell' : dxyContext.direction === 'melemah' ? 'buy' : null;
+    const dxyNote = dxyContext.direction === 'sideways'
+      ? 'DXY (indeks USD) lagi sideways, tidak ada tekanan searah yang jelas ke gold.'
+      : `DXY (indeks USD) lagi ${dxyContext.direction} (~${dxyContext.changePct > 0 ? '+' : ''}${dxyContext.changePct.toFixed(2)}% dalam ~20 jam terakhir) -- gold & DXY historisnya sering inverse, jadi ini ${dxyImpliesGoldDir === dir ? 'searah mendukung' : 'berlawanan, tapi info ini tidak menahan sinyal'} sinyal ${dir === 'buy' ? 'BUY' : 'SELL'} ini.`;
+    reason += `<br>6) Konteks DXY (info, bukan gate): ${dxyNote}`;
+  }
 
   // ----- Gate 10: konfirmasi multi-timeframe (~5m/~15m/~30m) -- WAJIB minimal 2 searah, 0 berlawanan -----
   // Kalau candle asli aktif, voting pakai candle OHLC asli 5m/15m/30m (independen, bukan cuma variasi
@@ -2144,7 +2197,9 @@ function openSignal(dir, entry, sl, tp1, tp2, tp3, reasonText, tfLabel){
     createdAt: now,
     entryDeadline: now + ENTRY_WINDOW_MS,
     status: 'pending',
-    triggeredAt: null
+    triggeredAt: null,
+    // (BARU) Tracking pasif Daily Bias -- lihat catatan di openZoneSignal().
+    dailyBiasAtOpen: dailyTrendDir
   };
   touchSignalState();
   renderCurrentSignal();
@@ -2483,7 +2538,12 @@ function openZoneSignal(dir, entry, sl, tp1, tp2, tpMax, reasonText){
     dir, entry, sl, tp1, tp2, tpMax, reasonText,
     createdAt: now,
     status: 'active', // golden zone langsung ACTIVE -- syarat trigger-nya emang "harga udah di situ sekarang"
-    triggeredAt: now
+    triggeredAt: now,
+    // (BARU) Tracking pasif Daily Bias -- CUMA dicatat, TIDAK dipakai buat nge-block/nge-skip
+    // sinyal apapun. Tujuannya buat ngumpulin data: apakah trade yang searah Daily Bias menang
+    // lebih sering daripada yang berlawanan? Baru diputuskan tindak lanjutnya (kalau ada) setelah
+    // data forward-test kekumpul cukup banyak.
+    dailyBiasAtOpen: dailyTrendDir
   };
   touchZoneState();
   renderZoneTrigger();
@@ -2533,14 +2593,14 @@ function processZoneTracking(currentPrice){
   const hitSL = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
 
   if (hitTP1 || hitSL){
-    appendLog({ result: hitTP1 ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, triggeredAt: t.triggeredAt, type: 'zone' });
+    appendLog({ result: hitTP1 ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, triggeredAt: t.triggeredAt, type: 'zone' });
     currentZone = null;
     zoneCooldownUntil = now + ZONE_REOPEN_COOLDOWN_MS;
     touchZoneState();
     renderLogTab();
     updateGoldenZoneTrigger(priceHistory.map(p => p.price));
   } else if (now - t.createdAt > ZONE_SAFETY_TIMEOUT_MS){
-    appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, note: 'Timeout keamanan 24 jam, belum resolve TP1/SL', type: 'zone' });
+    appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, note: 'Timeout keamanan 24 jam, belum resolve TP1/SL', type: 'zone' });
     currentZone = null;
     zoneCooldownUntil = now + ZONE_REOPEN_COOLDOWN_MS;
     touchZoneState();
@@ -2843,7 +2903,9 @@ function openIntradaySignal(dir, entry, sl, tp1, tp2, tpMax, reasonText){
     createdAt: now,
     entryDeadline: now + INTRADAY_ENTRY_WINDOW_MS,
     status: 'pending',
-    triggeredAt: null
+    triggeredAt: null,
+    // (BARU) Tracking pasif Daily Bias -- lihat catatan di openZoneSignal().
+    dailyBiasAtOpen: dailyTrendDir
   };
   touchIntradayState();
   renderIntradaySignal();
@@ -2906,7 +2968,7 @@ function processIntradayTracking(currentPrice){
       const hitTP1Now = t.dir === 'buy' ? currentPrice >= t.tp1 : currentPrice <= t.tp1;
       const hitSLNow = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
       if (hitTP1Now || hitSLNow){
-        appendLog({ result: hitTP1Now ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, triggeredAt: now, type: 'intraday', note: 'Entry & TP1/SL tersentuh dalam pergerakan harga yang sama (gap)' });
+        appendLog({ result: hitTP1Now ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, triggeredAt: now, type: 'intraday', note: 'Entry & TP1/SL tersentuh dalam pergerakan harga yang sama (gap)' });
         currentIntraday = null;
         touchIntradayState();
         renderLogTab();
@@ -2916,7 +2978,7 @@ function processIntradayTracking(currentPrice){
       touchIntradayState();
       renderIntradaySignal();
     } else if (now > t.entryDeadline){
-      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, note: 'Entry intraday tidak tersentuh dalam 30 menit', type: 'intraday' });
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, note: 'Entry intraday tidak tersentuh dalam 30 menit', type: 'intraday' });
       currentIntraday = null;
       touchIntradayState();
       renderLogTab();
@@ -2932,13 +2994,13 @@ function processIntradayTracking(currentPrice){
     const hitTP1 = t.dir === 'buy' ? currentPrice >= t.tp1 : currentPrice <= t.tp1;
     const hitSL = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
     if (hitTP1 || hitSL){
-      appendLog({ result: hitTP1 ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, triggeredAt: t.triggeredAt, type: 'intraday' });
+      appendLog({ result: hitTP1 ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, triggeredAt: t.triggeredAt, type: 'intraday' });
       currentIntraday = null;
       touchIntradayState();
       renderLogTab();
       updateIntradaySignal();
     } else if (now - t.createdAt > INTRADAY_SAFETY_TIMEOUT_MS){
-      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, at: now, note: 'Timeout keamanan 12 jam, belum resolve TP1/SL', type: 'intraday' });
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tpMax, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, note: 'Timeout keamanan 12 jam, belum resolve TP1/SL', type: 'intraday' });
       currentIntraday = null;
       touchIntradayState();
       renderLogTab();
@@ -3074,7 +3136,7 @@ function processTracking(currentPrice){
       const hitTP1Now = t.dir === 'buy' ? currentPrice >= t.tp1 : currentPrice <= t.tp1;
       const hitSLNow = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
       if (hitTP1Now || hitSLNow){
-        appendLog({ result: hitTP1Now ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, at: now, triggeredAt: now, note: 'Entry & TP1/SL tersentuh dalam pergerakan harga yang sama (gap)' });
+        appendLog({ result: hitTP1Now ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, triggeredAt: now, note: 'Entry & TP1/SL tersentuh dalam pergerakan harga yang sama (gap)' });
         currentSignal = null;
         touchSignalState();
         renderLogTab();
@@ -3084,7 +3146,7 @@ function processTracking(currentPrice){
       touchSignalState();
       renderCurrentSignal();
     } else if (now > t.entryDeadline){
-      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, at: now, note: 'Entry tidak tersentuh dalam 1 jam — momentum dianggap hilang' });
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, note: 'Entry tidak tersentuh dalam 1 jam — momentum dianggap hilang' });
       currentSignal = null;
       touchSignalState();
       renderLogTab();
@@ -3099,14 +3161,14 @@ function processTracking(currentPrice){
     const hitTP1 = t.dir === 'buy' ? currentPrice >= t.tp1 : currentPrice <= t.tp1;
     const hitSL = t.dir === 'buy' ? currentPrice <= t.sl : currentPrice >= t.sl;
     if (hitTP1 || hitSL){
-      appendLog({ result: hitTP1 ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, at: now, triggeredAt: t.triggeredAt });
+      appendLog({ result: hitTP1 ? 'win' : 'loss', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, triggeredAt: t.triggeredAt });
       currentSignal = null;
       touchSignalState();
       renderLogTab();
       updateSignal();
     } else if (now - t.createdAt > SAFETY_TIMEOUT_MS){
       // Jaring pengaman: sangat jarang kepakai (48 jam), hanya kalau harga macet total tanpa pernah kena TP1/SL
-      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, at: now, note: 'Timeout keamanan 48 jam, belum resolve TP1/SL' });
+      appendLog({ result: 'expired', dir: t.dir, entry: t.entry, sl: t.sl, tp: t.tp1, tp2: t.tp2, tpMax: t.tp3, dailyBiasAtOpen: t.dailyBiasAtOpen, at: now, note: 'Timeout keamanan 48 jam, belum resolve TP1/SL' });
       currentSignal = null;
       touchSignalState();
       renderLogTab();
@@ -3224,6 +3286,34 @@ function renderLogTab(){
         renderLogTab();
       });
     });
+  }
+
+  // ===== (BARU) Breakdown Daily Bias alignment -- MURNI INFORMASI, tracking pasif =====
+  // TIDAK menyaring/memblokir sinyal manapun -- cuma nunjukin dari data yang UDAH kejadian, apakah
+  // trade yang searah Daily Bias menang lebih sering daripada yang berlawanan. Baru jadi dasar
+  // keputusan (kalau ada) setelah sample-nya cukup banyak (idealnya 30+ tiap kelompok).
+  const biasBreakdownEl = document.getElementById('stat-bias-breakdown');
+  if (biasBreakdownEl){
+    const withBias = log.filter(e => e.dailyBiasAtOpen === 'buy' || e.dailyBiasAtOpen === 'sell');
+    const groups = [
+      { key: 'aligned', label: '✅ Searah Daily Bias', items: withBias.filter(e => e.dailyBiasAtOpen === e.dir) },
+      { key: 'against', label: '↔️ Berlawanan Daily Bias', items: withBias.filter(e => e.dailyBiasAtOpen !== e.dir) }
+    ];
+    if (withBias.length < 10){
+      biasBreakdownEl.innerHTML = `<div style="grid-column:1/-1; font-size:11.5px; color:var(--muted-2); padding:2px 2px 4px;">📊 Tracking pasif Daily Bias: baru ${withBias.length} sinyal yang punya data bias (belum cukup buat dibaca polanya, ini info-only, tidak memengaruhi sinyal manapun).</div>`;
+    } else {
+      const cardsB = groups.map(g => {
+        const r = g.items.filter(e => e.result === 'win' || e.result === 'loss');
+        const w = g.items.filter(e => e.result === 'win').length;
+        const wr = r.length ? Math.round((w / r.length) * 100) : null;
+        return `<div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; text-align:center;">
+          <div style="font-size:10.5px; color:var(--muted); letter-spacing:0.3px; margin-bottom:3px;">${g.label}</div>
+          <div style="font-size:17px; font-weight:800; color:${wr === null ? 'var(--muted-2)' : 'var(--gold)'};">${wr === null ? '–' : wr + '%'}</div>
+          <div style="font-size:10.5px; color:var(--muted-2); margin-top:2px;">${g.items.length} sinyal${r.length ? ` · ${w}W/${r.length - w}L` : ''}</div>
+        </div>`;
+      }).join('');
+      biasBreakdownEl.innerHTML = cardsB + `<div style="grid-column:1/-1; font-size:11px; color:var(--muted-2); padding-top:2px;">📊 Info-only -- belum dipakai buat menyaring sinyal manapun.</div>`;
+    }
   }
 
   const resolved = filteredLog.filter(e => e.result === 'win' || e.result === 'loss');

@@ -1021,18 +1021,34 @@ async function checkEconomicEvents(){
     const res = await fetch(ECON_FEED);
     const events = await res.json();
     const now = Date.now();
-    const WINDOW_BEFORE = -30 * 60 * 1000;
+    // FIX (window blackout bertingkat): batas "sebelum" diperlebar ke -60 menit (dari -30) supaya
+    // event MAJOR yang jaraknya 31-60 menit tetap ketangkep ke daftar "relevant" -- kalau tetap
+    // -30 menit, event major di menit ke-45 nggak bakal pernah dicek sama sekali.
+    const WINDOW_BEFORE = -AUTO_NEWS_BLOCK_MIN_MAJOR * 60 * 1000;
     const WINDOW_AFTER = 3 * 60 * 60 * 1000;
 
     const relevant = events
       .filter(e => e.country === 'USD' && e.impact === 'High')
-      .map(e => ({ ...e, ts: new Date(e.date).getTime() }))
+      .map(e => ({ ...e, ts: new Date(e.date).getTime(), tier: isMajorEconEvent(e.title) ? 'major' : 'high' }))
       .filter(e => (e.ts - now) > WINDOW_BEFORE && (e.ts - now) < WINDOW_AFTER)
       .sort((a, b) => a.ts - b.ts);
 
-    if (relevant.length){
-      const e = relevant[0];
-      upcomingHighImpact = { title: e.title, minutesUntil: Math.round((e.ts - now) / 60000) };
+    // Pilih event pertama yang BENERAN masuk window blokir sesuai tier-nya masing-masing -- bukan
+    // asal event yang waktunya paling deket. Ini penting kalau ada campuran event major & biasa
+    // berdekatan: event "high" biasa 45 menit lagi TIDAK blocking (di luar window 30 menit-nya),
+    // tapi event "major" 45 menit lagi TETAP blocking (masih di dalam window 60 menit-nya).
+    const blocking = relevant.find(e => {
+      const win = e.tier === 'major' ? AUTO_NEWS_BLOCK_MIN_MAJOR : AUTO_NEWS_BLOCK_MIN;
+      return Math.abs(Math.round((e.ts - now) / 60000)) <= win;
+    });
+
+    if (blocking){
+      upcomingHighImpact = { title: blocking.title, minutesUntil: Math.round((blocking.ts - now) / 60000), tier: blocking.tier, blocking: true };
+    } else if (relevant.length){
+      // Ada event dalam radar tapi belum masuk window blokir -- disimpan buat info/display aja,
+      // TIDAK dipakai buat nahan Gate 3 (lihat pengecekan blocking !== false di gate-nya).
+      const nearest = relevant[0];
+      upcomingHighImpact = { title: nearest.title, minutesUntil: Math.round((nearest.ts - now) / 60000), tier: nearest.tier, blocking: false };
     } else {
       upcomingHighImpact = null;
     }
@@ -1045,11 +1061,13 @@ function renderEconWarning(){
   if (!el) return;
   if (!upcomingHighImpact){ el.style.display = 'none'; return; }
   el.style.display = 'block';
-  const { title, minutesUntil } = upcomingHighImpact;
+  const { title, minutesUntil, tier, blocking } = upcomingHighImpact;
   const when = minutesUntil >= 0
     ? `dalam ${minutesUntil < 60 ? minutesUntil + ' menit' : Math.round(minutesUntil/60) + ' jam'}`
     : `${Math.abs(minutesUntil)} menit lalu`;
-  el.innerHTML = `⚠️ <b>Rilis data fundamental high-impact (USD): "${title}"</b> ${when}. Volatilitas gold bisa melonjak di sekitar waktu ini — pertimbangkan perbesar jarak SL atau tunggu sampai rilis selesai sebelum entry.`;
+  const tierBadge = tier === 'major' ? ' 🔴 MAJOR' : '';
+  const blockNote = blocking === false ? ' (belum masuk window blokir Sinyal Otomatis, masih info)' : '';
+  el.innerHTML = `⚠️ <b>Rilis data fundamental high-impact (USD)${tierBadge}: "${title}"</b> ${when}${blockNote}. Volatilitas gold bisa melonjak di sekitar waktu ini — pertimbangkan perbesar jarak SL atau tunggu sampai rilis selesai sebelum entry.`;
 }
 
 const SESSION_BAND_COLORS = {
@@ -1387,6 +1405,24 @@ let selectedAutoTF = 'm30';
 // asal SMA nyilang doang kayak versi sebelumnya. SEMUA gate di bawah ini wajib lolos -- kalau ada
 // satu aja yang nggak searah/gagal, sinyal di-skip dan alasannya ditampilkan spesifik.
 const AUTO_NEWS_BLOCK_MIN = 30;   // menit -- block sinyal baru kalau ada rilis fundamental high-impact USD dalam +-30 menit dari sekarang
+// (BARU, 28 Agu -- window blackout bertingkat) Feed ForexFactory nge-tag banyak rilis beda-beda
+// dampaknya sebagai "High" yang sama rata (misal Building Permits vs NFP sama-sama "High"),
+// padahal NFP/FOMC/CPI/PCE itu jauh lebih liar & lebih lama efeknya ke gold dibanding "High" biasa.
+// Window 30 menit yang lama TETAP DIPAKAI untuk semua rilis "High" biasa (TIDAK dipersempit -- ini
+// perubahan berisiko rendah, cuma menambah proteksi ekstra, bukan mengurangi yang sudah ada).
+// Event yang namanya cocok salah satu keyword di bawah dapat window lebih lebar.
+const AUTO_NEWS_BLOCK_MIN_MAJOR = 60; // menit -- khusus rilis paling berdampak ke gold
+const MAJOR_EVENT_KEYWORDS = [
+  'non-farm', 'nonfarm', 'non farm', 'nfp',
+  'fomc', 'federal funds rate', 'interest rate decision', 'fed interest rate',
+  'cpi', 'consumer price index',
+  'pce price index', 'core pce',
+  'fed chair', 'fomc press conference', 'fomc statement'
+];
+function isMajorEconEvent(title){
+  const t = (title || '').toLowerCase();
+  return MAJOR_EVENT_KEYWORDS.some(k => t.includes(k));
+}
 const AUTO_MIN_VOL = 0.8 * PIP;   // volatilitas rata-rata per tick minimal segini -- di bawah ini pasar dianggap terlalu flat/dead buat dianalisa
 const AUTO_MIN_ER = 0.22;         // (dilonggarin dari 0.28 atas permintaan user -- ini gate yang paling sering nge-block
                                    // padahal trend/RSI/MACD udah searah, cuma karena trend belum "bersih" banget. Gate
@@ -1443,8 +1479,14 @@ const ZONE_BAND_PCT = 0.15;            // lebar pita referensi Buy/Sell (v3: din
 const ZONE_MIN_WIDTH_PIP = 15;         // (BARU v3) lebar zona ABSOLUT minimal 15 pip, terlepas dari persen range -- supaya di range kecil pun zona tidak jadi setipis kertas
 const ZONE_MIN_GAP_PIP = 25;           // jarak minimum antara tepi Zona Buy & tepi Zona Sell -- dinaikkan 20 -> 25 supaya tetap ada jarak sehat meski kedua zona sekarang lebih lebar
 const ZONE_SL_BUFFER_PCT = 0.06;       // (v4: 4% -> 6%) jarak SL dari S/R = 6% dari range (biar nggak pas di garis, rawan wick, dan nggak selalu jatuh ke floor)
-const ZONE_MIN_RISK = 18 * PIP;        // (v4: 10 -> 18 pip) -- Golden Zone entry SELALU deket S/R jadi buffer alami sering mepet & kena floor ini; 10 pip terbukti dari Log kena noise berkali-kali (3 Loss beruntun, 2 di antaranya persis di floor 10 pip)
-const ZONE_MAX_RISK = 30 * PIP;        // cap 30 pip -- SL Zona TIDAK PERNAH lebih dari ini, sama seperti Intraday
+// (v5, 28 Agu -- data-driven) Analisa Log forward-test nunjukin 14/22 (64%) sinyal Zona SL-nya
+// nyangkut PERSIS di floor 18 pip atau deket cap lama 30 pip, dengan pola "kena SL duluan, abis
+// itu market lanjut ke arah yang tadinya diprediksi" -- ciri khas SL kegepetan buat gejolak
+// (noise/pullback) normal market yang lagi trending & volatile. Floor & cap dasar dinaikkan biar
+// nggak keburu ke-stop sebelum harga beneran mantul. Adaptive expansion (ATR_SL_MULTIPLIER) di
+// atas cap dasar ini TETAP jalan sama seperti sebelumnya buat kondisi yang lebih volatile lagi.
+const ZONE_MIN_RISK = 32 * PIP;        // (v4: 10->18, v5: 18->32 pip) -- lihat catatan di atas
+const ZONE_MAX_RISK = 50 * PIP;        // (v5: 30->50 pip) -- cap dasar naik supaya tetap >= floor baru & kasih ruang lebih dari sekadar 18 pip
 const ZONE_TP1_ANCHOR = 0.382;         // sama seperti pita referensi -- fib 38.2%
 const ZONE_TP2_ANCHOR = 0.618;         // fib 61.8%
 const ZONE_TP1_MIN_RR = 1.5;           // (BARU) TP1 fib doang bisa jadi tipis banget kalau entry mepet ujung pocket (risk dari SL floor 18 pip
@@ -1799,7 +1841,7 @@ function renderZoneSignal(prices){
   const buyLow = S, buyHigh = S + zoneWidth;
   const sellLow = R - zoneWidth, sellHigh = R;
 
-  // SL Zona: buffer kecil di luar Support/Resistance, tapi selalu di-clamp ke rentang 10-30 pip --
+  // SL Zona: buffer kecil di luar Support/Resistance, tapi selalu di-clamp ke rentang 32-50 pip --
   // konsisten dengan aturan "SL maks 30 pip" yang dipakai Sinyal Intraday.
   const slDist = Math.min(ZONE_MAX_RISK, Math.max(ZONE_MIN_RISK, range * 0.05));
   const buySl = S - slDist, sellSl = R + slDist;
@@ -1966,10 +2008,12 @@ async function runManualAnalysis(){
   const asiaOnly = activeSessions.length === 1 && activeSessions[0].key === 'asia';
   const sessionLabel = activeSessions.map(s => s.label).join(' + ');
 
-  // ----- Gate 3: fundamental -- tidak ada rilis high-impact USD dalam +-30 menit -----
-  if (upcomingHighImpact && Math.abs(upcomingHighImpact.minutesUntil) <= AUTO_NEWS_BLOCK_MIN){
+  // ----- Gate 3: fundamental -- tidak ada rilis high-impact USD dalam window blokir (bertingkat: -----
+  // 30 menit buat rilis "High" biasa, 60 menit buat rilis MAJOR seperti NFP/FOMC/CPI/PCE) -----
+  if (upcomingHighImpact && upcomingHighImpact.blocking !== false){
     const when = upcomingHighImpact.minutesUntil >= 0 ? `${upcomingHighImpact.minutesUntil} menit lagi` : `${Math.abs(upcomingHighImpact.minutesUntil)} menit lalu`;
-    statusEl.textContent = `Ditunda: rilis data fundamental high-impact USD "${upcomingHighImpact.title}" ${when} -- volatilitas berpotensi melonjak tidak beraturan di sekitar rilis, tunggu selesai dulu sebelum analisa baru.`;
+    const tierNote = upcomingHighImpact.tier === 'major' ? ' (rilis MAJOR, window diperlebar ke 60 menit)' : '';
+    statusEl.textContent = `Ditunda: rilis data fundamental high-impact USD "${upcomingHighImpact.title}" ${when}${tierNote} -- volatilitas berpotensi melonjak tidak beraturan di sekitar rilis, tunggu selesai dulu sebelum analisa baru.`;
     return;
   }
 
@@ -2139,7 +2183,7 @@ async function runManualAnalysis(){
     reason += `<br>7) Kualitas trend (Efficiency Ratio): ${er.toFixed(2)} -- ${er >= 0.6 ? 'kuat & bersih' : er >= 0.4 ? 'cukup solid' : 'lolos gate minimal, tapi tidak istimewa'}.`;
   }
 
-  reason += `<br>8) Fundamental: tidak ada rilis high-impact USD dalam ±${AUTO_NEWS_BLOCK_MIN} menit. Sesi aktif: ${sessionLabel}.`;
+  reason += `<br>8) Fundamental: tidak ada rilis high-impact USD dalam window blokir (±${AUTO_NEWS_BLOCK_MIN} menit rilis biasa, ±${AUTO_NEWS_BLOCK_MIN_MAJOR} menit khusus rilis major seperti NFP/FOMC/CPI/PCE). Sesi aktif: ${sessionLabel}.`;
   reason += `<br>9) Sumber data indikator: ${dataSourceLabel}${atr !== null ? ` -- ATR(14) ~${(atr/PIP).toFixed(1)} pip.` : ''}`;
   reason += `<br>10) Simulasi eksekusi: entry/TP/SL yang dipantau otomatis di tab Log sudah memperhitungkan spread ~${SPREAD_PIP} pip${SLIPPAGE_PIP ? ` + slippage ~${SLIPPAGE_PIP} pip di SL` : ''} (estimasi, sesuaikan ke broker Anda) -- bukan lagi harga mid mentah.`;
 
@@ -2522,7 +2566,7 @@ async function updateGoldenZoneTrigger(prices){
   const reasonText = `<b>Confidence Score ${confidenceScore.toFixed(1)}/5.5${bonusCount > 0 ? ` (2 wajib + ${bonusCount} bonus, dibobot)` : ' (2 wajib, tanpa bonus)'}:</b><br>` +
     confirmText +
     ' Golden Zone = pocket sempit (10% dari lebar range S-R) di ujung area, cuma trigger kalau harga BENERAN di situ + RSI ekstrem -- beda dari pita referensi lebar di atas yang selalu tampil sebagai info, ini baru muncul saat momennya beneran ada.' +
-    ` SL ditaruh sedikit di luar Support/Resistance, di-clamp ke rentang minimal 18 pip s/d ${Math.round(effectiveZoneMaxRisk/PIP)} pip${effectiveZoneMaxRisk > ZONE_MAX_RISK ? ' (dilebarin dari cap normal 30 pip karena volatilitas market saat ini lagi tinggi)' : ' (cap normal, market lagi kalem)'} (~${Math.round(finalRisk/PIP)} pip di sinyal ini) biar nggak gampang kena wick tipis. TP1 amanin profit (otomatis dicatat WIN begitu kesentuh) -- TP2/TP MAX referensi kalau mau hold manual lanjut.` +
+    ` SL ditaruh sedikit di luar Support/Resistance, di-clamp ke rentang minimal 32 pip s/d ${Math.round(effectiveZoneMaxRisk/PIP)} pip${effectiveZoneMaxRisk > ZONE_MAX_RISK ? ' (dilebarin dari cap normal 50 pip karena volatilitas market saat ini lagi tinggi)' : ' (cap normal, market lagi kalem)'} (~${Math.round(finalRisk/PIP)} pip di sinyal ini) biar nggak gampang kena wick tipis. TP1 amanin profit (otomatis dicatat WIN begitu kesentuh) -- TP2/TP MAX referensi kalau mau hold manual lanjut.` +
     (tp1UsedFloor
       ? ` <br>📌 TP1 di sinyal ini ditarik ke RR minimum ${ZONE_TP1_MIN_RR}x (bukan fib 38.2% biasa) -- entry lagi mepet ujung pocket jadi target fib aslinya lebih tipis dari risk, sistem narik TP1 lebih jauh biar "WIN" tetap berarti profit, bukan cuma teknis menang.`
       : ` TP1 sinyal ini pakai fib 38.2% seperti biasa -- jaraknya udah lebih dari ${ZONE_TP1_MIN_RR}x risk, jadi RR floor nggak perlu dipakai.`) +
@@ -2579,7 +2623,7 @@ function processZoneTracking(currentPrice){
 
   // Golden Zone langsung ACTIVE saat dibuat (tidak ada fase pending nunggu entry) -- entry sendiri
   // sudah dianggap terjadi di harga saat itu.
-  // FIX (spam-loss bug): SL Zona di-clamp minimal cuma 10-30 pip (ZONE_MIN_RISK/ZONE_MAX_RISK),
+  // FIX (spam-loss bug): SL Zona di-clamp minimal 32-50 pip (ZONE_MIN_RISK/ZONE_MAX_RISK),
   // tapi biaya spread+slippage (SPREAD_PIP+SLIPPAGE_PIP = 30 pip) yang tadinya ditambahkan ke
   // fillPrice bisa SAMA ATAU LEBIH BESAR dari jarak SL itu sendiri -- akibatnya SL bisa "kena"
   // cuma dari angka spread simulasi walau harga ASLI belum gerak sama sekali dari entry. Begitu
@@ -3035,7 +3079,12 @@ const LOG_KEY = 'goldSignalLog';
 // race condition (lihat catatan panjang di atas). Kode fix race condition-nya sendiri sekarang udah
 // benar, tapi kalau masih pakai nama flag lama, dia bakal langsung skip karena mikir "udah pernah
 // direset" -- makanya butuh nama flag baru biar proses reset yang SUDAH DIPERBAIKI ini beneran jalan.
-const LOG_RESET_FLAG = 'goldSignalLogResetV5';
+// V6 (28 Agu, BARU, 1 upload gabungan): (1) floor & cap SL Zona dinaikkan (18->32 pip, 30->50 pip)
+// berdasarkan analisa Log yang nunjukin 64% loss Zona nyangkut persis di floor/cap lama, DAN
+// (2) window blackout fundamental Sinyal Otomatis dibikin bertingkat (rilis MAJOR seperti
+// NFP/FOMC/CPI/PCE dapat window 60 menit, rilis "High" biasa tetap 30 menit seperti sebelumnya).
+// Baseline direset lagi biar data forward-test ke depan murni pakai kedua perubahan ini sekaligus.
+const LOG_RESET_FLAG = 'goldSignalLogResetV6';
 async function performLogResetIfNeeded(){
   if (localStorage.getItem(LOG_RESET_FLAG)) return;
   try{

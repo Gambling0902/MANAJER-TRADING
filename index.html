@@ -1501,6 +1501,24 @@ const ZONE_ER_HARD_FILTER = 0.75;      // (BARU) ER di atas ini = trend SANGAT b
                                         // harga+RSI doang. BEDA dari ZONE_ER_TREND_WARN: ini baru jadi GATE (tahan sinyal) kalau
                                         // bonusCount masih 0 saat itu -- begitu ada 1 aja confluence tambahan, gate ini tidak berlaku,
                                         // karena tujuannya cuma nyaring kasus "harga+RSI doang, lawan trend ekstrem, tanpa second opinion".
+// ===== (KAIZEN v6, 31 Agu) FIX AKAR MASALAH: sebelumnya S/R Golden Zone = Math.max/min(...prices)
+// atas SELURUH window, TERMASUK tick paling baru (yang belum "confirmed" arahnya). Konsekuensinya:
+// begitu harga bikin high baru di window ini, current price OTOMATIS jadi R itu sendiri, jadi
+// current SELALU masuk goldenSellHigh (=R) secara tautologis -- sinyal SELL nembak persis di titik
+// breakout ke atas (bukan di resistance beneran), sama buat BUY di breakdown ke bawah. Ini alasan
+// utama kenapa makin kuat tren gold belakangan ini, makin sering & makin parah kena SL (fading
+// breakout asli, bukan mean-reversion di S/R struktural). Fix: S/R sekarang WAJIB dari swing
+// high/low yang sudah CONFIRMED (butuh CONFIRM_LOOKBACK tick "nemenin" di kedua sisi), jadi tick
+// paling baru tidak akan pernah bisa jadi S/R-nya sendiri -- harus beneran napak ke level lama.
+const ZONE_CONFIRM_LOOKBACK = 6;       // tick konfirmasi swing (6 x 30 detik = 3 menit tiap sisi) -- cukup ketat
+                                        // biar bukan noise 1 tick, tapi tetap cukup cepat buat konteks 2.5 jam window Zona.
+const ZONE_MIN_BONUS_REQUIRED = 1;     // (KAIZEN v6) minimal 1 confluence tambahan (MACD deceleration/RSI divergence/candle)
+                                        // WAJIB ada buat SEMUA sinyal Golden Zone, bukan cuma saat ER ekstrem -- data Log
+                                        // nunjukin setup "harga+RSI doang tanpa second opinion" paling rapuh & paling sering
+                                        // ternyata cuma breakout genuine yang ketangkep RSI ekstrem, bukan exhaustion beneran.
+const ZONE_ER_TREND_FADE_BONUS = 2;    // kalau ER >= ZONE_ER_TREND_WARN (market lagi trending cukup bersih) DAN arah sinyal
+                                        // MELAWAN arah tren jangka pendek itu, naikkan syarat jadi minimal 2 bonus (bukan 1) --
+                                        // fading tren yang jelas butuh bukti lebih kuat daripada sekadar sentuh pocket + RSI.
 const ZONE_STATE_KEY = 'goldZoneState';
 const ZONE_SAFETY_TIMEOUT_MS = 24 * 60 * 60 * 1000; // jaring pengaman 24 jam -- zona sifatnya lebih lambat dari intraday
 // FIX (spam-loss bug, lapis kedua): setelah Zone resolve (WIN/LOSS/expired), kasih jeda singkat
@@ -2420,10 +2438,44 @@ async function updateGoldenZoneTrigger(prices){
   }
 
   const current = prices[prices.length - 1];
-  const R = Math.max(...prices), S = Math.min(...prices), range = R - S;
+
+  // (KAIZEN v6) S/R dari swing CONFIRMED, bukan Math.max/min mentah -- lihat catatan panjang di
+  // ZONE_CONFIRM_LOOKBACK di atas soal kenapa versi lama tautologis (current price selalu jadi R/S
+  // dirinya sendiri persis saat breakout). findSwingsWindow butuh tick di KEDUA sisi untuk konfirmasi
+  // titik itu beneran swing, jadi tick terakhir/paling baru tidak akan pernah lolos jadi S/R sendiri.
+  const confirmedSwings = prices.length >= ZONE_CONFIRM_LOOKBACK * 2 + 1
+    ? findSwingsWindow(prices, ZONE_CONFIRM_LOOKBACK) : { highs: [], lows: [] };
+  let R, S, structural;
+  if (confirmedSwings.highs.length && confirmedSwings.lows.length){
+    // Ambil swing high/low CONFIRMED paling ekstrem di window ini -- itulah resistance/support
+    // struktural yang beneran pernah bikin harga berbalik, bukan cuma titik tertinggi/terendah sesaat.
+    R = Math.max(...confirmedSwings.highs.map(h => h.price));
+    S = Math.min(...confirmedSwings.lows.map(l => l.price));
+    structural = true;
+  } else {
+    // Fallback selagi histori masih terlalu pendek buat swing confirmed: tetap pakai min/max, tapi
+    // SENGAJA buang ekor ZONE_CONFIRM_LOOKBACK tick paling baru dulu -- supaya tick sekarang tidak
+    // pernah bisa jadi S/R dirinya sendiri, walau belum ada swing confirmed yang proper.
+    const trimmed = prices.slice(0, Math.max(1, prices.length - ZONE_CONFIRM_LOOKBACK));
+    R = Math.max(...trimmed);
+    S = Math.min(...trimmed);
+    structural = false;
+  }
+  const range = R - S;
 
   if (range < ZONE_MIN_RANGE){
     statusEl.textContent = `Range Support-Resistance masih sempit ($${range.toFixed(2)}), belum ada Golden Zone yang berarti.`;
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  // (KAIZEN v6) Kalau harga sudah TEMBUS lewat S/R struktural (bikin high/low baru di luar swing
+  // confirmed terakhir), itu justru sinyal BREAKOUT -- bukan momen buat difade. Golden Zone sengaja
+  // tidak menampilkan pocket sama sekali selagi kondisi ini (menunggu swing baru confirm dulu),
+  // supaya tidak short breakout ke atas / buy breakdown ke bawah seperti bug versi lama.
+  if (current > R || current < S){
+    statusEl.textContent = `Harga sudah tembus level Support/Resistance struktural terakhir ($${S.toFixed(2)}-$${R.toFixed(2)}) -- ini area breakout, BUKAN momen mean-reversion. Golden Zone menunggu swing baru ter-konfirmasi dulu sebelum nunjukin pocket lagi (mencegah fade breakout genuine).`;
     statusEl.style.display = 'block';
     resultEl.style.display = 'none';
     return;
@@ -2525,15 +2577,26 @@ async function updateGoldenZoneTrigger(prices){
     }catch(e){ /* fetch gagal/timeout -- dilewati, tidak menahan sinyal */ }
   }
 
-  // ----- Gate (BARU): trend ekstrem + nol confluence tambahan = tahan sinyal -----
-  // Beda dari catatan ER biasa di atas (yang cuma warning teks): ini satu-satunya kondisi di
-  // Golden Zone Trigger yang bisa MENOLAK setup meski harga+RSI sudah confirm. Alasannya spesifik:
-  // di ER >= 0.75 (trend SANGAT bersih), taruhan "harga bakal mantul di S/R" lawan momentum yang
-  // sedemikian kuat itu spekulatif kalau tidak ada satupun second opinion (MACD melambat / divergence
-  // / candle reversal) yang mendukung. Begitu ada minimal 1 confluence, gate ini tidak berlaku --
-  // filternya cuma nyaring kasus "harga+RSI doang, full melawan trend ekstrem, tanpa bukti tambahan".
-  if (er !== null && er >= ZONE_ER_HARD_FILTER && bonusCount === 0){
-    statusEl.textContent = `Golden Moment terdeteksi (harga di pocket + RSI ekstrem) tapi ditahan -- Efficiency Ratio ${er.toFixed(2)} nunjukin trend saat ini sangat kuat/bersih dan tidak ada satupun confluence tambahan (MACD/divergence/candle) yang mendukung skenario pantulan. Menunggu konfirmasi tambahan atau kondisi trend mereda.`;
+  // ----- Gate 1 (KAIZEN v6): minimal 1 confluence tambahan WAJIB, selalu -- lihat catatan
+  // ZONE_MIN_BONUS_REQUIRED di atas. Sebelumnya gate ini cuma nyala saat ER ekstrem; sekarang
+  // "harga di pocket + RSI ekstrem doang, nol second opinion" ditahan dalam kondisi APAPUN,
+  // karena kombinasi itu paling gampang ke-trigger persis di breakout genuine (bukan exhaustion).
+  if (bonusCount < ZONE_MIN_BONUS_REQUIRED){
+    statusEl.textContent = `Golden Moment terdeteksi (harga di pocket + RSI ekstrem) tapi ditahan -- belum ada satupun confluence tambahan (MACD melambat/RSI divergence/candle reversal) yang mendukung skenario pantulan. Harga+RSI ekstrem doang gampang ketuker sama breakout genuine, bukan cuma exhaustion. Menunggu konfirmasi tambahan.`;
+    statusEl.style.display = 'block';
+    resultEl.style.display = 'none';
+    return;
+  }
+
+  // ----- Gate 2 (KAIZEN v6): kalau ini benar-benar FADING tren jangka pendek yang lagi bersih
+  // (ER tinggi & arah tren pendek berlawanan dgn arah sinyal), naikkan syarat jadi minimal
+  // ZONE_ER_TREND_FADE_BONUS confluence -- gate 1 di atas cuma syarat minimum umum, kasus fading
+  // tren aktif butuh bukti ekstra karena taruhannya lebih spekulatif (lawan momentum yang jelas).
+  const trendWindow = Math.min(20, prices.length - 1);
+  const trendSlopeDir = trendWindow > 0 ? (current - prices[prices.length - 1 - trendWindow] > 0 ? 'buy' : 'sell') : null;
+  const fadingCleanTrend = er !== null && er >= ZONE_ER_TREND_WARN && trendSlopeDir && trendSlopeDir !== dir;
+  if (fadingCleanTrend && bonusCount < ZONE_ER_TREND_FADE_BONUS){
+    statusEl.textContent = `Golden Moment terdeteksi tapi ditahan -- Efficiency Ratio ${er.toFixed(2)} nunjukin tren jangka pendek saat ini lagi bersih & searah ${trendSlopeDir === 'buy' ? 'naik' : 'turun'} (berlawanan sama arah sinyal ${dir === 'buy' ? 'BUY' : 'SELL'} ini), sementara confluence tambahan cuma ${bonusCount}/${ZONE_ER_TREND_FADE_BONUS} yang dibutuhkan buat berani fade tren sekuat ini. Menunggu bukti lebih kuat atau tren mereda.`;
     statusEl.style.display = 'block';
     resultEl.style.display = 'none';
     return;
@@ -2565,7 +2628,7 @@ async function updateGoldenZoneTrigger(prices){
 
   const reasonText = `<b>Confidence Score ${confidenceScore.toFixed(1)}/5.5${bonusCount > 0 ? ` (2 wajib + ${bonusCount} bonus, dibobot)` : ' (2 wajib, tanpa bonus)'}:</b><br>` +
     confirmText +
-    ' Golden Zone = pocket sempit (10% dari lebar range S-R) di ujung area, cuma trigger kalau harga BENERAN di situ + RSI ekstrem -- beda dari pita referensi lebar di atas yang selalu tampil sebagai info, ini baru muncul saat momennya beneran ada.' +
+    ` Golden Zone = pocket sempit (10% dari lebar range S-R) di ujung area, cuma trigger kalau harga BENERAN di situ + RSI ekstrem -- beda dari pita referensi lebar di atas yang selalu tampil sebagai info, ini baru muncul saat momennya beneran ada. S/R dasarnya ${structural ? 'swing high/low yang SUDAH TER-KONFIRMASI' : `titik ekstrem sementara (histori swing confirmed belum cukup, fallback pakai range tanpa ${ZONE_CONFIRM_LOOKBACK} tick terakhir)`} -- bukan cuma tick tertinggi/terendah sesaat, jadi tidak fade breakout genuine.` +
     ` SL ditaruh sedikit di luar Support/Resistance, di-clamp ke rentang minimal 32 pip s/d ${Math.round(effectiveZoneMaxRisk/PIP)} pip${effectiveZoneMaxRisk > ZONE_MAX_RISK ? ' (dilebarin dari cap normal 50 pip karena volatilitas market saat ini lagi tinggi)' : ' (cap normal, market lagi kalem)'} (~${Math.round(finalRisk/PIP)} pip di sinyal ini) biar nggak gampang kena wick tipis. TP1 amanin profit (otomatis dicatat WIN begitu kesentuh) -- TP2/TP MAX referensi kalau mau hold manual lanjut.` +
     (tp1UsedFloor
       ? ` <br>📌 TP1 di sinyal ini ditarik ke RR minimum ${ZONE_TP1_MIN_RR}x (bukan fib 38.2% biasa) -- entry lagi mepet ujung pocket jadi target fib aslinya lebih tipis dari risk, sistem narik TP1 lebih jauh biar "WIN" tetap berarti profit, bukan cuma teknis menang.`
